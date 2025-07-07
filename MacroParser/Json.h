@@ -22,7 +22,7 @@ namespace JSON {
 			NUMBER,		//숫자
 			BOOL,		//true false
 			NULL_TYPE,	//null
-			FLOAT,		//소수
+			DOUBLE,		//소수
 			INVALID,	//잘못된 타입
 			DELETE		//삭제된 타입(추가적인 용도로 사용 가능)
 		};
@@ -91,12 +91,24 @@ namespace JSON {
 	using namespace Dynamic;
 	using namespace JSON;
 
+#define JSON_OBJ JSON::JObj()
+#define JSON_ARR JSON::JArr()
+#define OPER_ASSIGN(para_type, Jenum_type)\
+void operator=(const para_type& value){\
+		if(key == nullptr) {\
+			cout << "JsonCtrl is Not Obj." << endl;\
+			return;\
+		}\
+		JObj* obj = static_cast<JObj*>(parent.root->ptype);\
+		obj->Set_Key(key->Get_Str()); \
+		obj->Set_Value(Jenum_type); \
+	}
 
 	//Json 처리 부분 자료구조 사용 API라고 생각하면 될거 같습니다.
 	class JsonCtrl {
 	public:
-		JsonCtrl() : root(nullptr), Child(nullptr) {}
-		JsonCtrl(JNode::JType rootType) : root(new JNode(rootType)), Child(nullptr) {}
+		JsonCtrl() : root(nullptr), Child(nullptr), Obj(nullptr) {}
+		JsonCtrl(JNode::JType rootType) : root(new JNode(rootType)), Child(nullptr), Obj(nullptr) {}
 		~JsonCtrl() {
 			if (root != nullptr) {
 				delete root;
@@ -106,15 +118,26 @@ namespace JSON {
 				delete Child;
 				Child = nullptr; // 포인터 초기화
 			}
+			if (Obj != nullptr) {
+				delete Obj;
+				Obj = nullptr; // 포인터 초기화
+			}
 		}
 
-		class Proxy {
+		class Proxy {		//무조건 객체 타입일때만 사용되는 Push용 클래스라고 보면 됩니다.
 			Dynamic::DynamicStr* key; // 키 값
 			JsonCtrl& parent; // 부모 JsonCtrl 객체 참조
 
 		public:
-			Proxy(JsonCtrl& parentCtrl, const char* k) : key(new Dynamic::DynamicStr(128)), parent(parentCtrl) {
-				key->Set_Str(k); // 키 값 설정
+			Proxy(JsonCtrl& parentCtrl, const char* k) : parent(parentCtrl) {
+				if (k == "" || k == "arr") {
+					cout << "This Node Not Obj Type" << endl;
+					key = nullptr;
+				}
+				else {
+					key = new Dynamic::DynamicStr(128); // 키 값 동적 할당
+					key->Set_Str(k); // 키 값 설정
+				}
 			}
 			~Proxy() {
 				if (key != nullptr) {
@@ -124,26 +147,41 @@ namespace JSON {
 				}
 			}
 
-#define JSON_OBJ JSON::JObj{}
-#define JSON_ARR JSON::JArr{}
 			//자동 타입으로 하면 개발자가 어떤 타입인지 알기가 어려우니 여러 연산자 오버로딩으로 노가다 해야할듯
-			template<typename T>
-			void operator=(const T& value) {
-				JObj* obj = static_cast<JObj*>(parent.root->ptype);
+			//1. Obj 타입
+			OPER_ASSIGN(const JSON::JObj, JNode::JType::OBJECT);
+			//2. Arr 타입
+			OPER_ASSIGN(const JSON::JArr, JNode::JType::ARRAY);
+			//3. Str 타입
+			OPER_ASSIGN(const char*, JNode::JType::STRING); 
+			//4. Num 타입
+			OPER_ASSIGN(int, JNode::JType::NUMBER);
+			//5. Bol 타입
+			OPER_ASSIGN(bool, JNode::JType::BOOL);
+			//6. Double 타입
+			OPER_ASSIGN(double, JNode::JType::DOUBLE);
+			//7. NULL 타입
+			OPER_ASSIGN(void*, JNode::JType::NULL_TYPE);
 
-				obj->Set_Key(key->Get_Str()); // 키 값 설정
 
-
-
-
-			}
-
+			
 		};
 
 		//사용자 API 함수들
 		//Push 넣기
 		//{} 객체 기준 var["key"] = value;
-		Proxy operator[](const char* key) {
+		Proxy& operator[](const char* key) {
+			// JsonCtrl 객체가 초기화되지 않은 경우 혹은 객체가 아닌 경우
+			if (root == nullptr) {
+				//nullptr 인 경우 예외 처리
+				static Proxy dummy(*this, "");
+				return dummy;
+			}
+			else if (root->type == JNode::JType::ARRAY) {
+				//배열 타입인 경우 넘겨주기
+				static Proxy dummy(*this, "arr");
+				return dummy;
+			}
 			Child = new Proxy(*this, key);
 			return *Child; // Proxy 객체 반환
 		}
@@ -152,7 +190,7 @@ namespace JSON {
 
 
 	private:
-
+		JObj* Obj;		// Json 객체
 		Proxy* Child;	// 리소스 하위 객체
 		JNode* root;	// Json의 루트 노드
 	};

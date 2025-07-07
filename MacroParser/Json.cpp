@@ -25,8 +25,8 @@ void JNode::Set_Type(JType nodeType) {
 	case JType::BOOL:
 		ptype = new bool();
 		break;
-	case JType::FLOAT:
-		ptype = new float();
+	case JType::DOUBLE:
+		ptype = new double();
 		break;
 	case JType::NULL_TYPE:
 	case JType::INVALID:

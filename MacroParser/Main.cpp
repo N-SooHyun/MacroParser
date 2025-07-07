@@ -22,17 +22,14 @@ void testDynamicStrMain() {
 }
 
 void testJsonModel() {
-	JSON::JsonCtrl example_json(JSON::JNode::JType::OBJECT);
-	
-	//Test
-	example_json["name"] = "John Doe";
-	const char* name = "name2";
+	JSON::JsonCtrl NullJson;
+	JSON::JsonCtrl ObjJson(JSON::JNode::JType::OBJECT);
+	JSON::JsonCtrl ArrJson(JSON::JNode::JType::ARRAY);
 
-	example_json[name] = 1;
+	NullJson["Test"] = 1;
+	ObjJson["Test"] = 1;
+	ArrJson["Test"] = 1;
 
-	example_json["obj"] = JSON_OBJ;
-
-	
 }
 
 void main() {
