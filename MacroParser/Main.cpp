@@ -30,6 +30,13 @@ void testJsonModel() {
 	ObjJson["Test"] = 1;
 	ArrJson["Test"] = 1;
 
+	int num = ObjJson["Test"];
+	printf("%d\n", ObjJson["Test"]);
+
+	ObjJson["Test2"] = 0.0;
+	double dum = ObjJson["Test2"];
+	printf("%f\n", dum);
+
 }
 
 void main() {

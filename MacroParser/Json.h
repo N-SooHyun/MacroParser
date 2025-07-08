@@ -46,7 +46,7 @@ namespace JSON {
 		friend class JObj;
 		friend class JArr;
 		friend class JsonCtrl;
-		friend class Proxy;
+		friend class Obj_Ctrl;
 	};
 
 
@@ -124,12 +124,12 @@ void operator=(const para_type& value){\
 			}
 		}
 
-		class Proxy {		//무조건 객체 타입일때만 사용되는 Push용 클래스라고 보면 됩니다.
+		class Obj_Ctrl {		//무조건 객체 타입일때만 사용되는 Push용 클래스라고 보면 됩니다.
 			Dynamic::DynamicStr* key; // 키 값
 			JsonCtrl& parent; // 부모 JsonCtrl 객체 참조
 
 		public:
-			Proxy(JsonCtrl& parentCtrl, const char* k) : parent(parentCtrl) {
+			Obj_Ctrl(JsonCtrl& parentCtrl, const char* k) : parent(parentCtrl) {
 				if (k == "" || k == "arr") {
 					cout << "This Node Not Obj Type" << endl;
 					key = nullptr;
@@ -139,7 +139,7 @@ void operator=(const para_type& value){\
 					key->Set_Str(k); // 키 값 설정
 				}
 			}
-			~Proxy() {
+			~Obj_Ctrl() {
 				if (key != nullptr) {
 					delete key; // 동적 할당된 키 값 해제
 					key = nullptr; // 포인터 초기화
@@ -163,35 +163,43 @@ void operator=(const para_type& value){\
 			//7. NULL 타입
 			OPER_ASSIGN(void*, JNode::JType::NULL_TYPE);
 
+			operator int() {
+				printf("Test");
+				return 0;
+			}
 
+			operator double() {
+				printf("Test2");
+				return 0.0;
+			}
 			
 		};
 
 		//사용자 API 함수들
 		//Push 넣기
 		//{} 객체 기준 var["key"] = value;
-		Proxy& operator[](const char* key) {
+		Obj_Ctrl& operator[](const char* key) {
 			// JsonCtrl 객체가 초기화되지 않은 경우 혹은 객체가 아닌 경우
 			if (root == nullptr) {
 				//nullptr 인 경우 예외 처리
-				static Proxy dummy(*this, "");
+				static Obj_Ctrl dummy(*this, "");
 				return dummy;
 			}
 			else if (root->type == JNode::JType::ARRAY) {
 				//배열 타입인 경우 넘겨주기
-				static Proxy dummy(*this, "arr");
+				static Obj_Ctrl dummy(*this, "arr");
 				return dummy;
 			}
-			Child = new Proxy(*this, key);
-			return *Child; // Proxy 객체 반환
+			Child = new Obj_Ctrl(*this, key);
+			return *Child; // Obj_Ctrl 객체 반환
 		}
 
 		//Pop 빼기
-
+		
 
 	private:
 		JObj* Obj;		// Json 객체
-		Proxy* Child;	// 리소스 하위 객체
+		Obj_Ctrl* Child;	// 리소스 하위 객체
 		JNode* root;	// Json의 루트 노드
 	};
 }
