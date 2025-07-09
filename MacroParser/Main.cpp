@@ -1,5 +1,6 @@
 #include "Main.h"
 
+#include "Timer_Thread.h"
 
 void testDynamicStrMain() {
 	const char* test = "Hello";
@@ -22,17 +23,15 @@ void testDynamicStrMain() {
 }
 
 void testJsonModel() {
-	JSON::JsonCtrl NullJson;
-	JSON::JsonCtrl ObjJson(JSON::JNode::JType::OBJECT);
-	JSON::JsonCtrl ArrJson(JSON::JNode::JType::ARRAY);
+	using namespace JSON;
+	using namespace Dynamic;
+	//예시 "{"A" : "B"}" frstJson
+	JSON::JNode frstJson(JNode::JType::OBJECT);
+	JObj* obj = static_cast<JObj*>(frstJson.Get_Type());
 
-	//NullJson["Test"] = 1;
-	ObjJson["Test"] = 1;
-	ObjJson["Test"] = 2;
-	ObjJson["Test2"] = 2;
-	//ArrJson["Test"] = 1;
+	
 
-	int num = ObjJson["Test"];
+	
 
 }
 
@@ -43,7 +42,9 @@ void main() {
 	//Excel -(VBA)-> .json( {"Excel" : [{"Seq(1)" : "Call"},{...},{...}] } ) -> fopen 읽기
 	//fopen -> Data화
 
-	testJsonModel();
+	//testJsonModel();
+
+	Timer_Ctrl();
 
 	
 }

@@ -24,7 +24,6 @@ namespace JSON {
 			NULL_TYPE,	//null
 			DOUBLE,		//소수
 			INVALID,	//잘못된 타입
-			DELETE		//삭제된 타입(추가적인 용도로 사용 가능)
 		};
 		JNode() : type(JType::NULL_TYPE), ptype(nullptr){}
 		JNode(JType nodeType) : type(nodeType), ptype(nullptr) {
@@ -32,11 +31,12 @@ namespace JSON {
 		}
 
 		void Set_Type(JType nodeType);
+		void* Get_Type();
 
 		~JNode() {
 			delete ptype; // 동적 할당된 메모리 해제
 			ptype = nullptr; // 포인터 초기화
-			type = JType::DELETE; // 타입을 DELETE로 설정
+			type = JType::NULL_TYPE; // 타입을 DELETE로 설정
 		}
 
 	private:
@@ -59,6 +59,7 @@ namespace JSON {
 
 		void Set_Key(const char* k);  // 키 값 설정
 		void Set_Value(JNode::JType nodeType);// 값 타입 설정
+		JNode Get_Value();
 
 	private:
 		Dynamic::DynamicStr key; // 키 값
@@ -90,7 +91,7 @@ namespace JSON {
 	//-------------------------------Json사용자 호출부분-------------------------------
 	//---------------------------------------------------------------------------------
 
-
+/*
 	using namespace std;
 	using namespace Dynamic;
 	using namespace JSON;
@@ -268,5 +269,7 @@ void operator=(const para_type& value){\
 		Obj_Ctrl* Child;	// 리소스 하위 객체
 		JNode* root;		// Json의 루트 노드
 	};
+
+	*/
 }
 
