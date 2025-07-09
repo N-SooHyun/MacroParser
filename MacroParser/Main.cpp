@@ -26,16 +26,13 @@ void testJsonModel() {
 	JSON::JsonCtrl ObjJson(JSON::JNode::JType::OBJECT);
 	JSON::JsonCtrl ArrJson(JSON::JNode::JType::ARRAY);
 
-	NullJson["Test"] = 1;
+	//NullJson["Test"] = 1;
 	ObjJson["Test"] = 1;
-	ArrJson["Test"] = 1;
+	ObjJson["Test"] = 2;
+	ObjJson["Test2"] = 2;
+	//ArrJson["Test"] = 1;
 
 	int num = ObjJson["Test"];
-	printf("%d\n", ObjJson["Test"]);
-
-	ObjJson["Test2"] = 0.0;
-	double dum = ObjJson["Test2"];
-	printf("%f\n", dum);
 
 }
 

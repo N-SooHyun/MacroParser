@@ -131,6 +131,7 @@
     <ClInclude Include="Lib.h" />
     <ClInclude Include="Macro.h" />
     <ClInclude Include="Main.h" />
+    <ClInclude Include="Timer_Thread.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

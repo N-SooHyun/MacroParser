@@ -64,6 +64,9 @@ namespace JSON {
 		Dynamic::DynamicStr key; // 키 값
 		JNode value; // 값 (Json_Model 타입으로 정의)
 		JObj* next; // 다음 객체를 가리키는 포인터 (연결 리스트 형태로 구현 가능)
+		friend class JArr;
+		friend class JsonCtrl;
+		friend class Obj_Ctrl;
 	};
 
 
@@ -81,6 +84,7 @@ namespace JSON {
 		JArr* next; // 다음 배열 요소를 가리키는 포인터 (연결 리스트 형태로 구현 가능)
 		JNode value; // 배열 요소의 값 (Json_Model 타입으로 정의)
 	};
+
 
 	//---------------------------------------------------------------------------------
 	//-------------------------------Json사용자 호출부분-------------------------------
@@ -102,13 +106,20 @@ void operator=(const para_type& value){\
 		JObj* obj = static_cast<JObj*>(parent.root->ptype);\
 		obj->Set_Key(key->Get_Str()); \
 		obj->Set_Value(Jenum_type); \
+		*static_cast<para_type*>(obj->value.ptype) = value; \
+		parent.Obj = parent.Obj->next;\
 	}
+
+#define OPER_DEFAULT
 
 	//Json 처리 부분 자료구조 사용 API라고 생각하면 될거 같습니다.
 	class JsonCtrl {
 	public:
 		JsonCtrl() : root(nullptr), Child(nullptr), Obj(nullptr) {}
-		JsonCtrl(JNode::JType rootType) : root(new JNode(rootType)), Child(nullptr), Obj(nullptr) {}
+		JsonCtrl(JNode::JType rootType) : root(new JNode(rootType)), Child(nullptr), Obj(nullptr) {
+			if (rootType == JNode::JType::OBJECT)
+				Obj = static_cast<JObj*>(root->ptype);
+		}
 		~JsonCtrl() {
 			if (root != nullptr) {
 				delete root;
@@ -134,10 +145,22 @@ void operator=(const para_type& value){\
 					cout << "This Node Not Obj Type" << endl;
 					key = nullptr;
 				}
-				else {
-					key = new Dynamic::DynamicStr(128); // 키 값 동적 할당
-					key->Set_Str(k); // 키 값 설정
+
+				JObj* Excep_Key = static_cast<JObj*>(parent.root->ptype);
+
+				for (; ;) {
+					if (Excep_Key == nullptr) break; //이미 존재하는 키가 없으면 종료
+
+					if (Excep_Key->key.Get_Str() == k) {
+						// Key에대한 Value가 이미 존재하는 경우 값 덮어쓰기
+						key = &(Excep_Key->key);
+						return;
+					}
+					Excep_Key = Excep_Key->next; // 다음 객체로 이동
 				}
+
+				key = new Dynamic::DynamicStr(128); // 키 값 동적 할당
+				key->Set_Str(k); // 키 값 설정
 			}
 			~Obj_Ctrl() {
 				if (key != nullptr) {
@@ -148,24 +171,56 @@ void operator=(const para_type& value){\
 			}
 
 			//자동 타입으로 하면 개발자가 어떤 타입인지 알기가 어려우니 여러 연산자 오버로딩으로 노가다 해야할듯
+			
 			//1. Obj 타입
-			OPER_ASSIGN(const JSON::JObj, JNode::JType::OBJECT);
+			OPER_ASSIGN(JSON::JObj, JNode::JType::OBJECT)
 			//2. Arr 타입
-			OPER_ASSIGN(const JSON::JArr, JNode::JType::ARRAY);
+			OPER_ASSIGN(JSON::JArr, JNode::JType::ARRAY)
 			//3. Str 타입
-			OPER_ASSIGN(const char*, JNode::JType::STRING); 
+			void operator=(const char* value) {
+				if (key == nullptr) {
+					cout << "JsonCtrl is Not Obj." << endl; return;
+				} 
+				JObj* obj = static_cast<JObj*>(parent.root->ptype); 
+				obj->Set_Key(key->Get_Str()); 
+				obj->Set_Value(JNode::JType::STRING);
+				Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(obj->value.ptype);
+				str->Set_Str(value);
+				parent.Obj = parent.Obj->next; // 다음 객체로 이동
+			}
 			//4. Num 타입
-			OPER_ASSIGN(int, JNode::JType::NUMBER);
+			OPER_ASSIGN(int, JNode::JType::NUMBER)
 			//5. Bol 타입
-			OPER_ASSIGN(bool, JNode::JType::BOOL);
+			OPER_ASSIGN(bool, JNode::JType::BOOL)
 			//6. Double 타입
-			OPER_ASSIGN(double, JNode::JType::DOUBLE);
+			OPER_ASSIGN(double, JNode::JType::DOUBLE)
 			//7. NULL 타입
-			OPER_ASSIGN(void*, JNode::JType::NULL_TYPE);
+			void operator=(const void* value) {
+				JObj* Excep_Key = static_cast<JObj*>(parent.root->ptype);
+
+				for (; ;) {
+					if (Excep_Key == nullptr) break; //이미 존재하는 키가 없으면 종료
+
+					if (Excep_Key->key.Get_Str() == value) {
+						cout << "The Key Already Exists" << endl;
+						return; // 이미 존재하는 키인 경우 예외 처리
+					}
+					Excep_Key = Excep_Key->next; // 다음 객체로 이동
+				}
+
+				if (key == nullptr) {
+					cout << "JsonCtrl is Not Obj." << endl; return;
+				} JObj* obj = static_cast<JObj*>(parent.root->ptype); 
+				obj->Set_Key(key->Get_Str()); 
+				obj->Set_Value(JNode::JType::NULL_TYPE);
+				parent.Obj = parent.Obj->next; // 다음 객체로 이동
+			}
 
 			operator int() {
-				printf("Test");
-				return 0;
+				if (key == nullptr) {
+					cout << "JsonCtrl is Not Obj." << endl;
+					return 0;
+				}
 			}
 
 			operator double() {
@@ -190,17 +245,28 @@ void operator=(const para_type& value){\
 				static Obj_Ctrl dummy(*this, "arr");
 				return dummy;
 			}
-			Child = new Obj_Ctrl(*this, key);
-			return *Child; // Obj_Ctrl 객체 반환
+
+
+			if (root->type == JNode::JType::OBJECT) {
+				Child = new Obj_Ctrl(*this, key);
+				return *Child; // Obj_Ctrl 객체 반환
+			}
+			else {
+				//잘못된 타입인 경우 예외 처리
+				static Obj_Ctrl dummy(*this, "");
+				return dummy;
+			}
+
+
 		}
 
 		//Pop 빼기
 		
 
 	private:
-		JObj* Obj;		// Json 객체
+		JObj* Obj;			// Json 객체
 		Obj_Ctrl* Child;	// 리소스 하위 객체
-		JNode* root;	// Json의 루트 노드
+		JNode* root;		// Json의 루트 노드
 	};
 }
 

@@ -47,6 +47,7 @@ void JObj::Set_Key(const char* k) {
 
 void JObj::Set_Value(JNode::JType nodeType) {
 	value.Set_Type(nodeType); // 값 타입 설정
+	
 }
 
 //JArr class 부분
