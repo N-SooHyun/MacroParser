@@ -32,6 +32,9 @@ namespace JSON {
 
 		void Set_Type(JType nodeType);
 		void* Get_Type();
+		template<typename T>
+		JNode::JType GetJsonType() ;
+
 
 		~JNode() {
 			delete ptype; // 동적 할당된 메모리 해제
@@ -46,7 +49,6 @@ namespace JSON {
 		friend class JObj;
 		friend class JArr;
 		friend class JsonCtrl;
-		friend class Obj_Ctrl;
 	};
 
 
@@ -67,7 +69,6 @@ namespace JSON {
 		JObj* next; // 다음 객체를 가리키는 포인터 (연결 리스트 형태로 구현 가능)
 		friend class JArr;
 		friend class JsonCtrl;
-		friend class Obj_Ctrl;
 	};
 
 
@@ -90,6 +91,249 @@ namespace JSON {
 	//---------------------------------------------------------------------------------
 	//-------------------------------Json사용자 호출부분-------------------------------
 	//---------------------------------------------------------------------------------
+
+	//관리자이자 처리자 JsonCtrl클래스
+
+#define OBJ JSON::JObj()		//{}를 의미
+#define ARR	JSON::JArr()		//[]를 의미
+
+	class JsonCtrl {
+	public:
+		JsonCtrl() : root(nullptr), Obj(nullptr), Arr(nullptr){}
+		JsonCtrl(JNode::JType JsonType) : root(nullptr), Obj(nullptr), Arr(nullptr){
+			root = new JNode(JsonType); // Json의 루트 노드 생성 Type, ptype 초기화
+		}
+		
+		//3개 변수 소멸
+		~JsonCtrl() {
+			if (root != nullptr) {
+				delete root;
+				root = nullptr;
+			}
+			if(Obj != nullptr) {
+				delete Obj;
+				Obj = nullptr;
+			}
+			if(Arr != nullptr) {
+				delete Arr;
+				Arr = nullptr;
+			}
+		}
+
+		//root 노드초기화
+		void operator = (const JNode::JType& JsonType) {
+			if (root != nullptr) {
+				std::cout << "JsonCtrl is Already Initialized." << std::endl;
+				return;
+			}
+
+			root = new JNode(JsonType); // Json의 루트 노드 생성 Type, ptype 초기화
+		}
+
+		//예외처리 부분
+		bool Exception_Root_Null() {
+			if (root == nullptr) {
+				std::cout << "JsonCtrl is Not Initialized." << std::endl;
+				return true;
+			}
+			return false;
+		}
+		bool Exception_Root_Type_Null() {
+			if (root->ptype == nullptr) {
+				std::cout << "JsonCtrl is Not Initialized." << std::endl;
+				return true;
+			}
+			return false;
+		}
+
+		//Node가 Object 타입인 경우
+
+
+
+		//Node Arr 타입인 경우
+
+
+
+		//Node 단일 타입인 경우	(int, double, bool, string)
+		//타입이 다르면 덮어쓰기 금지인 Set_Value
+		void Set_Value(const char* value) {
+			//문자열 리터럴로 받을 경우
+			Set_Value<const char*>(value);
+		}
+		template<typename T>
+		void Set_Value(const T& value) {
+			if (Exception_Root_Null() || Exception_Root_Type_Null()) return;
+
+			if (root->type != root->GetJsonType<T>()) {
+				std::cout << "해당 타입으로 값을 설정할 수 없습니다." << std::endl;
+				return;
+			}
+
+			if (root->type == JNode::JType::OBJECT || root->type == JNode::JType::ARRAY) {
+				std::cout << "단일타입만 값을 설정할 수 있습니다." << std::endl;
+				return;
+			}
+
+			if (root->ptype) {
+				try {
+					switch (root->type) {
+					case JNode::JType::NUMBER:
+						if constexpr (std::is_convertible_v<T, int>) {
+							int* num = static_cast<int*>(root->ptype);
+							*num = static_cast<int>(value); // T를 int로 변환
+							std::cout << "Set_Value: " << *num << std::endl;
+						}
+						else throw std::runtime_error("타입 변환 오류: T는 int로 변환할 수 없습니다.");
+						break;
+
+					case JNode::JType::STRING:
+						if constexpr (std::is_convertible_v<T, const char*>) {
+							Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(root->ptype);
+							str->Set_Str(static_cast<const char*>(value)); // T를 const char*로 변환
+							std::cout << "Set_Value: " << str->Get_Str() << std::endl;
+						}
+						else throw std::runtime_error("타입 변환 오류: T는 const char*로 변환할 수 없습니다.");
+						break;
+
+					case JNode::JType::BOOL:
+						if constexpr (std::is_convertible_v<T, bool>) {
+							bool* bol = static_cast<bool*>(root->ptype);
+							*bol = static_cast<bool>(value); // T를 bool로 변환
+							std::cout << "Set_Value: " << *bol << std::endl;
+						}
+						else throw std::runtime_error("타입 변환 오류: T는 bool로 변환할 수 없습니다.");
+						break;
+
+					case JNode::JType::DOUBLE:
+						if constexpr (std::is_convertible_v<T, double>) {
+							double* dbl = static_cast<double*>(root->ptype);
+							*dbl = static_cast<double>(value); // T를 double로 변환
+							std::cout << "Set_Value: " << *dbl << std::endl;
+						}
+						else throw std::runtime_error("타입 변환 오류: T는 double로 변환할 수 없습니다.");
+						break;
+
+					default:
+
+						break;
+					}
+				}catch(const std::exception& e) {
+					std::cout << "예외 발생: " << e.what() << std::endl;
+					return;
+				}
+				
+
+				
+
+
+				
+			}
+
+		}
+
+		//강제 타입 변경 
+		template<typename T>
+		void Force_Set_Value(const T& value) {
+			if (Exception_Root_Null() || Exception_Root_Type_Null()) return;
+
+			if (root->type == JNode::JType::OBJECT || root->type == JNode::JType::ARRAY) {
+				std::cout << "단일타입만 값을 설정할 수 있습니다." << std::endl;
+				return;
+			}
+
+			if(root->type != root->GetJsonType<T>()) {
+				if (root->GetJsonType<T>() == JNode::JType::OBJECT || root->GetJsonType<T>() == JNode::JType::ARRAY) {
+					std::cout << "해당 타입으로 값을 설정할 수 없습니다. 객체나 배열 타입은 강제 설정할 수 없습니다." << std::endl;
+					return;
+				}
+
+				//타입이 다르면 덮어쓰기 가능하도록 만들어야합니다.
+				std::cout << "해당 타입으로 값을 설정할 수 없습니다. 강제 설정합니다." << std::endl;
+				root->Set_Type(root->GetJsonType<T>()); // 새로운 타입으로 설정
+			}
+
+			if (root->ptype) {
+				try {
+					switch (root->type) {
+					case JNode::JType::NUMBER:
+						if constexpr (std::is_convertible_v<T, int>) {
+							int* num = static_cast<int*>(root->ptype);
+							*num = static_cast<int>(value); // T를 int로 변환
+							std::cout << "Set_Value: " << *num << std::endl;
+						}
+						else throw std::runtime_error("타입 변환 오류: T는 int로 변환할 수 없습니다.");
+						break;
+
+					case JNode::JType::STRING:
+						if constexpr (std::is_convertible_v<T, const char*>) {
+							Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(root->ptype);
+							str->Set_Str(static_cast<const char*>(value)); // T를 const char*로 변환
+							std::cout << "Set_Value: " << str->Get_Str() << std::endl;
+						}
+						else throw std::runtime_error("타입 변환 오류: T는 const char*로 변환할 수 없습니다.");
+						break;
+
+					case JNode::JType::BOOL:
+						if constexpr (std::is_convertible_v<T, bool>) {
+							bool* bol = static_cast<bool*>(root->ptype);
+							*bol = static_cast<bool>(value); // T를 bool로 변환
+							std::cout << "Set_Value: " << *bol << std::endl;
+						}
+						else throw std::runtime_error("타입 변환 오류: T는 bool로 변환할 수 없습니다.");
+						break;
+
+					case JNode::JType::DOUBLE:
+						if constexpr (std::is_convertible_v<T, double>) {
+							double* dbl = static_cast<double*>(root->ptype);
+							*dbl = static_cast<double>(value); // T를 double로 변환
+							std::cout << "Set_Value: " << *dbl << std::endl;
+						}
+						else throw std::runtime_error("타입 변환 오류: T는 double로 변환할 수 없습니다.");
+						break;
+
+					default:
+
+						break;
+					}
+				}
+				catch (const std::exception& e) {
+					std::cout << "예외 발생: " << e.what() << std::endl;
+					return;
+				}
+
+
+
+
+
+
+			}
+
+		}
+
+		
+		//단일 타입의 값을 가져오는 메소드
+		template<typename T>
+		T Get_Value() {
+			if (Exception_Root_Null() || Exception_Root_Type_Null()) {
+				throw std::runtime_error("비어 있는 노드");
+			}
+
+			auto expected = root->GetJsonType<T>();
+			if (root->type != expected) {
+				std::cerr << "[ERROR] 타입 불일치. root->type = " << (int)root->type
+					<< ", 요청된 타입 = " << (int)expected << std::endl;
+				throw std::runtime_error("타입 불일치");
+			}
+			
+			return *static_cast<T*>(root->ptype);
+		}
+
+	private:
+		JNode* root; // Json의 루트 노드
+		JObj* Obj; // Json 객체
+		JArr* Arr; // Json 배열
+
+	};
 
 /*
 	using namespace std;

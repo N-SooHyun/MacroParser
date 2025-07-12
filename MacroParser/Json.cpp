@@ -42,6 +42,14 @@ void* JNode::Get_Type() {
 	return ptype;
 }
 
+template<> JNode::JType JNode::GetJsonType<int>() { return JType::NUMBER; }
+template<> JNode::JType JNode::GetJsonType<double>() { return JType::DOUBLE; }
+template<> JNode::JType JNode::GetJsonType<bool>() { return JType::BOOL; }
+template<> JNode::JType JNode::GetJsonType<Dynamic::DynamicStr>() { return JType::STRING; }
+template<> JNode::JType JNode::GetJsonType<const char*>() { return JType::STRING; }
+template<> JNode::JType JNode::GetJsonType<JSON::JObj>() { return JType::OBJECT; }
+template<> JNode::JType JNode::GetJsonType<JSON::JArr>() { return JType::ARRAY; }
+
 
 //JObj class ºÎºÐ
 void JObj::Set_Key(const char* k) {
