@@ -5,9 +5,6 @@
 using namespace JSON;
 
 void JNode::Set_Type(JType nodeType) {
-	if (ptype) {
-		delete ptype; // 기존에 할당된 메모리 해제
-	}
 	type = nodeType;
 	switch (type) {
 	case JType::OBJECT:
@@ -72,6 +69,8 @@ void JArr::Set_Value(JNode::JType nodeType) {
 void JArr::Set_Next(JArr* nextNode) {
 	next = nextNode; // 다음 배열 요소 설정
 }
+
+
 
 
 

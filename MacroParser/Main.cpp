@@ -91,6 +91,29 @@ void testJsonModel() {
 
 }
 
+
+
+void JsonAPI_Test() {
+	JSON::JsonAPI Js;
+
+	// 단일타입일때
+	 Js = "Hello";
+	 Js = 123;
+	 //Js = 12.34;
+	 //Js = true;
+	 Js = nullptr; // null 타입
+
+	// const char* str = Js.GetValue();
+	// int num = Js.GetValue();
+	// double dbl = Js.GetValue();
+	// bool bln = Js.GetValue();
+
+
+
+
+
+}
+
 void main() {
 	//매크로 함수 파싱해주는 프로그램 입니다.
 	//Excel에 Seq, Call, Result 3개의 열을 통해서 Seq와 Call을 넣고 실행파일을 실행하면 Result가 나옵니다.
@@ -98,9 +121,10 @@ void main() {
 	//Excel -(VBA)-> .json( {"Excel" : [{"Seq(1)" : "Call"},{...},{...}] } ) -> fopen 읽기
 	//fopen -> Data화
 
-	testJsonModel();
+	//testJsonModel();
 
 	//Timer_Ctrl();
-
 	
+	JsonAPI_Test();
+
 }

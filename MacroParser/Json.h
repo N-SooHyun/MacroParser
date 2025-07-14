@@ -37,9 +37,11 @@ namespace JSON {
 
 
 		~JNode() {
-			delete ptype; // 동적 할당된 메모리 해제
-			ptype = nullptr; // 포인터 초기화
-			type = JType::NULL_TYPE; // 타입을 DELETE로 설정
+			if (ptype != nullptr) {
+				delete ptype; // 동적 할당된 메모리 해제
+				ptype = nullptr; // 포인터 초기화
+				type = JType::NULL_TYPE; // 타입을 DELETE로 설정
+			}
 		}
 
 	private:
@@ -49,6 +51,7 @@ namespace JSON {
 		friend class JObj;
 		friend class JArr;
 		friend class JsonCtrl;
+		friend class JsonAPI;
 	};
 
 
@@ -69,6 +72,7 @@ namespace JSON {
 		JObj* next; // 다음 객체를 가리키는 포인터 (연결 리스트 형태로 구현 가능)
 		friend class JArr;
 		friend class JsonCtrl;
+		friend class JsonAPI;
 	};
 
 
@@ -85,6 +89,8 @@ namespace JSON {
 	private:
 		JArr* next; // 다음 배열 요소를 가리키는 포인터 (연결 리스트 형태로 구현 가능)
 		JNode value; // 배열 요소의 값 (Json_Model 타입으로 정의)
+
+		friend class JsonAPI;
 	};
 
 
@@ -92,7 +98,250 @@ namespace JSON {
 	//-------------------------------Json사용자 호출부분-------------------------------
 	//---------------------------------------------------------------------------------
 
-	//관리자이자 처리자 JsonCtrl클래스
+	//JSON 사용 규칙
+	// {} 객체일때
+	// JNode Js = "{"Key" : "Value"}"; 
+	// 1. Insert 추가하기
+	// Js.a = "b";  -> {"Key" : "Value", "a" : "b"}
+	// Js["a"] = "b";  -> {"Key" : "Value", "a" : "b"}
+	// char* var = "a";    Js[var] = "b";  -> {"Key" : "Value", "a" : "b"}
+
+	// 2. Get 값 가져오기 및 찾기?
+	// Js.get("a");  -> "b"
+	// Js["a"];  -> "b"
+	// char* var = "a";    Js[var];  -> "b"
+
+	// 3. Delete 삭제하기
+	// Js.del("a");  -> {"Key" : "Value"}
+	// Js["a"].del();  -> {"Key" : "Value"}
+	// char* var = "a";    Js[var].del();  -> {"Key" : "Value"}
+
+	// 4. Clear 비우기
+	// Js.clear();  -> {}
+
+
+	// [] Arr일때
+	// 1. Insert 추가하기
+	// Js[0] = "a";  -> ["a"]
+	// Js[1] = "b";  -> ["a", "b"]
+	// int idx = 2;    Js[idx] = "c";  -> ["a", "b", "c"]
+
+	// 2. Get 값 가져오기 및 찾기?
+	// Js[0];  -> "a"
+	// Js[1];  -> "b"
+	// int idx = 2;    Js[idx];  -> "c"
+
+	// 3. Delete 삭제하기
+	// Js[0].del();  -> ["b", "c"]
+
+	// 4. Clear 비우기
+	// Js.clear();  -> []
+
+
+	// 단일 타입일때
+	// 1. Insert 추가하기 혹은 덮어쓰기겠죠?
+	// Js = "Hello";  -> "Hello"
+	// Js = 123;  -> 123
+
+	// 2. Get 값 가져오기
+	// Js.get();  -> "Hello" 혹은 123
+	// Js.get<int>();  -> 123
+
+	// 3. Delete 삭제하기
+	// Js.del();  -> null 혹은 0
+
+	// 4. Clear 비우기
+	// Js.clear();  -> null 혹은 0
+
+	//---------------------------------------------------------------------------------
+
+	// 뭐든지 JNode가 시작이며 이걸 기준으로 진행하도록
+	
+
+	class JsonAPI {
+	public:
+		JsonAPI() : root(nullptr) { root = new JNode(JNode::JType::NULL_TYPE); }
+		JsonAPI(JNode::JType JsonType) : root(nullptr) {
+			root = new JNode(JsonType); // Json의 루트 노드 생성 Type, ptype 초기화
+		}
+
+		~JsonAPI() {
+			if (root != nullptr) {
+				delete root;
+				root = nullptr;
+			}
+		}
+
+		//Exception 처리 부분
+		bool Root_Is_Null() {
+			//Root가 nullptr인 경우 예외 처리
+			if (root == nullptr) {
+				//std::cout << "JsonAPI is Not Initialized." << std::endl;
+				return true;
+			}
+			return false;
+		}
+
+		bool Root_Type_Is_Null() {
+			//Root의 타입이 nullptr인 경우 예외 처리
+			if (root->ptype == nullptr) {
+				//std::cout << "JsonAPI is Not Initialized." << std::endl;
+				return true;
+			}
+			return false;
+		}
+
+		bool Root_Type_Is_Object() {
+			//Root의 타입이 Object가 아닌 경우 예외 처리
+			if (root->type != JNode::JType::OBJECT) {
+				//std::cout << "JsonAPI is Not Object Type." << std::endl;
+				return false;
+			}
+			return true;
+		}
+
+		bool Root_Type_Is_Array() {
+			//Root의 타입이 Array가 아닌 경우 예외 처리
+			if (root->type != JNode::JType::ARRAY) {
+				//std::cout << "JsonAPI is Not Array Type." << std::endl;
+				return false;
+			}
+			return true;
+		}
+
+		bool Root_Type_Is_Single() {
+			//Root의 타입이 단일 타입이 아닌 경우 예외 처리
+			if (root->type != JNode::JType::STRING && 
+				root->type != JNode::JType::NUMBER && 
+				root->type != JNode::JType::BOOL && 
+				root->type != JNode::JType::DOUBLE) {
+				std::cout << "JsonAPI is Not Single Type." << std::endl;
+				return false;
+			}
+			return true;
+		}
+
+		void Single_Type_Delete_Root() {
+			switch (root->type) {
+			case  JNode::JType::STRING:
+				delete static_cast<Dynamic::DynamicStr*>(root->ptype); // 문자열 타입 삭제
+				root->ptype = nullptr; // 포인터 초기화
+				break;
+			case JNode::JType::NUMBER:
+				delete static_cast<int*>(root->ptype); // 정수 타입 삭제
+				root->ptype = nullptr; // 포인터 초기화
+				break;
+			case JNode::JType::DOUBLE:
+				delete static_cast<double*>(root->ptype); // 실수 타입 삭제
+				root->ptype = nullptr; // 포인터 초기화
+				break;
+			case JNode::JType::BOOL:
+				delete static_cast<bool*>(root->ptype); // 불리언 타입 삭제
+				root->ptype = nullptr; // 포인터 초기화
+				break;
+			case JNode::JType::NULL_TYPE:
+				// null 타입은 포인터를 사용하지 않음
+				root->ptype = nullptr; // 포인터 초기화
+				break;
+			default:
+				std::cout << "JsonAPI is Not Single Type." << std::endl;
+				return; // 단일 타입이 아닌 경우 예외 처리
+			}
+		}
+
+
+		//{} 일때
+
+
+		//[] 일때
+
+
+		// 단일 타입일때
+
+		// Js = "Hello";  -> "Hello"   문자열일때
+		void operator=(const char* value) {
+			if (!Root_Type_Is_Null()) {	//타입이 존재함을 의미 Node가 존재함
+				Single_Type_Delete_Root();
+			}
+
+			root->Set_Type(JNode::JType::STRING); // 타입 설정
+			
+			Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(root->ptype);
+			str->Set_Str(value); // 문자열 설정
+
+			//만약에 문자열이 "{ ~~ }" 혹은 "[]" 일때
+			//str[0] == '{' && str[str->str_last_focus] == '}' 일때는 객체인거로 넘겨주기 및 파싱해주기
+			//str[0] == '[' && str[str->str_last_focus] == ']' 일때는 배열인걸로 넘겨주기 및 파싱해주기
+		}
+
+		// Js = 123;  -> 123   정수일때
+		void operator=(int value) {
+			if (!Root_Type_Is_Null()) {	//타입이 존재함을 의미 Node가 존재함
+				Single_Type_Delete_Root();
+			}
+			root->Set_Type(JNode::JType::NUMBER); // 타입 설정
+
+			int* num = static_cast<int*>(root->ptype);
+			*num = value; // 정수 설정
+		}
+
+		// Js = 12.34;  -> 12.34   실수일때
+		void operator=(double value) {
+			if (!Root_Type_Is_Null()) {	//타입이 존재함을 의미 Node가 존재함
+				Single_Type_Delete_Root();
+			}
+			root->Set_Type(JNode::JType::DOUBLE); // 타입 설정
+			double* dbl = static_cast<double*>(root->ptype);
+			*dbl = value; // 실수 설정
+		}
+
+		// Js = true;  -> true   불리언일때
+		void operator=(bool value) {
+			if (!Root_Type_Is_Null()) {	//타입이 존재함을 의미 Node가 존재함
+				Single_Type_Delete_Root();
+			}
+			root->Set_Type(JNode::JType::BOOL); // 타입 설정
+			bool* bol = static_cast<bool*>(root->ptype);
+			*bol = value; // 불리언 설정
+		}
+
+		void operator=(std::nullptr_t) {
+			if (!Root_Type_Is_Null()) {	//타입이 존재함을 의미 Node가 존재함
+				Single_Type_Delete_Root();
+			}
+			root->Set_Type(JNode::JType::NULL_TYPE); // 타입 설정
+			root->ptype = nullptr; // null 타입은 포인터를 사용하지 않음
+		}
+
+	private:
+		JNode* root;
+
+	};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #define OBJ JSON::JObj()		//{}를 의미
 #define ARR	JSON::JArr()		//[]를 의미
