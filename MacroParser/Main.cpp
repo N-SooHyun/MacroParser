@@ -102,6 +102,12 @@ void JsonAPI_Test() {
 	 //Js = 12.34;
 	 //Js = true;
 	 Js = nullptr; // null е╦ют
+	 Js = "{\"a\" : \"b\"}";
+	 Js = R"("{ "a" : "b" }")";
+
+	 JSON::JObj obj;
+
+	 Js = obj;
 
 	// const char* str = Js.GetValue();
 	// int num = Js.GetValue();

@@ -10,9 +10,9 @@ namespace Dynamic {
 	private:
 		char* Str;
 		int capacity_size;
+	public:
 		int current_size;	//마지막 '\0'까지의 값 ex) New Word\0 => 8
 		int str_last_focus;	//마지막 문자까지의 값 ex) New Word]0 => 7
-	public:
 		DynamicStr(int _size) : capacity_size(_size), current_size(-1), str_last_focus(-1) {
 			Str = new char[capacity_size];
 		}
@@ -24,6 +24,14 @@ namespace Dynamic {
 
 		char* Get_Str() {
 			return Str;
+		}
+
+		char Char_Get_Str(int focus) {
+			return Str[focus];
+		}
+
+		char operator[](int focus) {
+			return Str[focus];
 		}
 
 		//문자열 통으로 삽입하기

@@ -251,9 +251,41 @@ namespace JSON {
 
 
 		//{} 일때
+		//객체 타입 처리 및 파싱 로직
+		void Obj_Ctrl(const char* obj_str) {
+			
 
+		}
+		void Obj_Parser(const char* obj_str) {
+
+		}
+
+
+		//단순히 변수 받을때
+		void operator=(JObj& obj) {
+			
+		}
+
+		//동적 인스턴스 받을때
+		void operator=(JObj* obj) {
+			
+		}
 
 		//[] 일때
+		//배열 타입 처리 및 파싱 로직
+		void Arr_Ctrl(const char* arr_str) {
+
+		}
+
+		//단순히 변수 받을때
+		void operator=(JArr& arr) {
+
+		}
+
+		//동적 인스턴스 받을때
+		void operator= (JArr * arr){
+
+		}
 
 
 		// 단일 타입일때
@@ -269,9 +301,23 @@ namespace JSON {
 			Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(root->ptype);
 			str->Set_Str(value); // 문자열 설정
 
+			
 			//만약에 문자열이 "{ ~~ }" 혹은 "[]" 일때
 			//str[0] == '{' && str[str->str_last_focus] == '}' 일때는 객체인거로 넘겨주기 및 파싱해주기
 			//str[0] == '[' && str[str->str_last_focus] == ']' 일때는 배열인걸로 넘겨주기 및 파싱해주기
+			short first_focus = 0;
+			short last_focus = str->str_last_focus;
+			if ((*str)[first_focus] == '\"' && (*str)[last_focus] == '\"') {
+				first_focus++;
+				last_focus--;
+			}
+
+			//Obj라고 판단
+			if ((*str)[first_focus] == '{' && (*str)[last_focus] == '}') {
+				Obj_Ctrl(str->Get_Str());
+			}
+
+
 		}
 
 		// Js = 123;  -> 123   정수일때
