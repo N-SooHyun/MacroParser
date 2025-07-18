@@ -35,17 +35,9 @@ void JNode::Set_Type(JType nodeType) {
 	}
 }
 
-void* JNode::Get_Type() {
+void* JNode::Get_Ptype() {
 	return ptype;
 }
-
-template<> JNode::JType JNode::GetJsonType<int>() { return JType::NUMBER; }
-template<> JNode::JType JNode::GetJsonType<double>() { return JType::DOUBLE; }
-template<> JNode::JType JNode::GetJsonType<bool>() { return JType::BOOL; }
-template<> JNode::JType JNode::GetJsonType<Dynamic::DynamicStr>() { return JType::STRING; }
-template<> JNode::JType JNode::GetJsonType<const char*>() { return JType::STRING; }
-template<> JNode::JType JNode::GetJsonType<JSON::JObj>() { return JType::OBJECT; }
-template<> JNode::JType JNode::GetJsonType<JSON::JArr>() { return JType::ARRAY; }
 
 
 //JObj class 부분
@@ -58,8 +50,8 @@ void JObj::Set_Value(JNode::JType nodeType) {
 }
 
 
-JNode JObj::Get_Value() {
-	return value;
+JNode* JObj::Get_Value() {
+	return &value;
 }
 
 //JArr class 부분

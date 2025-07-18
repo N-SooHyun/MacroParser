@@ -11,6 +11,11 @@ namespace JSON {
 	//-------------------------------Json자료구조 부분---------------------------------
 	//---------------------------------------------------------------------------------
 
+	class JNodeBase {
+	public:
+		virtual ~JNodeBase() {}
+	};
+
 	class JNode {
 	public: 
 		enum class JType {
@@ -31,20 +36,32 @@ namespace JSON {
 		}
 
 		void Set_Type(JType nodeType);
-		void* Get_Type();
+		void* Get_Ptype();
 		template<typename T>
 		JNode::JType GetJsonType() ;
 
 
 		~JNode() {
-			if (ptype != nullptr) {
-				delete ptype; // 동적 할당된 메모리 해제
-				ptype = nullptr; // 포인터 초기화
-				type = JType::NULL_TYPE; // 타입을 DELETE로 설정
+			//delete ptype;
+			if(type == JNode::JType::ARRAY || type == JNode::JType::OBJECT) {
+				// JObj나 JArr 타입의 경우, ptype은 해당 타입의 객체를 가리키므로 동적 할당 해제
+				delete static_cast<JNodeBase*>(ptype);
 			}
+			else if (type == JNode::JType::STRING) {
+				// DynamicStr 타입의 경우, ptype은 문자열을 가리키므로 동적 할당 해제
+				delete static_cast<Dynamic::DynamicStr*>(ptype);
+			}
+			else if (type == JNode::JType::NUMBER || type == JNode::JType::BOOL || type == JNode::JType::DOUBLE) {
+				delete ptype;
+			}
+			ptype = nullptr;
+			type = JNode::JType::INVALID; // 타입을 INVALID로 설정하여 안전하게 초기화
 		}
 
-	private:
+		JNode(const JNode& other) = delete; // 복사 생성자 삭제
+		JNode& operator=(const JNode& other) = delete; // 복사 대입 연산자 삭제
+
+	//private:
 		JType type; //노드 타입
 		void* ptype; //노드 타입에 따른 데이터 포인터
 
@@ -55,32 +72,37 @@ namespace JSON {
 	};
 
 
-	class JObj {
+	class JObj : public JNodeBase {
 	public: 
 		JObj() : key(128) , value(JNode::JType::NULL_TYPE), next(nullptr){}
 		~JObj() {
-			delete next; // 다음 객체를 가리키는 포인터 해제 
+			if (next != nullptr) {
+				delete next;
+				next = nullptr;
+			}
 		}
 
 		void Set_Key(const char* k);  // 키 값 설정
 		void Set_Value(JNode::JType nodeType);// 값 타입 설정
-		JNode Get_Value();
+		JNode* Get_Value();
 
-	private:
+	//private:
 		Dynamic::DynamicStr key; // 키 값
 		JNode value; // 값 (Json_Model 타입으로 정의)
 		JObj* next; // 다음 객체를 가리키는 포인터 (연결 리스트 형태로 구현 가능)
 		friend class JArr;
-		friend class JsonCtrl;
 		friend class JsonAPI;
 	};
 
 
-	class JArr {
+	class JArr : public JNodeBase{
 	public:
 		JArr() : next(nullptr), value(JNode::JType::NULL_TYPE){}
 		~JArr() {
-			delete next; // 다음 배열 요소를 가리키는 포인터 해제
+			if (next != nullptr) {
+				delete next;
+				next = nullptr;
+			}
 		}
 
 		void Set_Value(JNode::JType nodeType);
@@ -156,659 +178,86 @@ namespace JSON {
 	//---------------------------------------------------------------------------------
 
 	// 뭐든지 JNode가 시작이며 이걸 기준으로 진행하도록
-	
 
-	class JsonAPI {
+	class JsonCtrl {
 	public:
-		JsonAPI() : root(nullptr) { root = new JNode(JNode::JType::NULL_TYPE); }
-		JsonAPI(JNode::JType JsonType) : root(nullptr) {
-			root = new JNode(JsonType); // Json의 루트 노드 생성 Type, ptype 초기화
+		JsonCtrl() : root(nullptr) {}
+		JsonCtrl(JNode::JType rootType) {
+			root = new JNode(rootType);
 		}
 
-		~JsonAPI() {
+		~JsonCtrl() {
 			if (root != nullptr) {
 				delete root;
 				root = nullptr;
 			}
 		}
 
-		//Exception 처리 부분
-		bool Root_Is_Null() {
-			//Root가 nullptr인 경우 예외 처리
-			if (root == nullptr) {
-				//std::cout << "JsonAPI is Not Initialized." << std::endl;
-				return true;
-			}
-			return false;
+
+		//<대입 연산자 오버로딩>
+		//enum으로 받을때
+		void operator=(JNode::JType rootType) {
+			root = new JNode(rootType);
 		}
 
-		bool Root_Type_Is_Null() {
-			//Root의 타입이 nullptr인 경우 예외 처리
-			if (root->ptype == nullptr) {
-				//std::cout << "JsonAPI is Not Initialized." << std::endl;
-				return true;
-			}
-			return false;
-		}
-
-		bool Root_Type_Is_Object() {
-			//Root의 타입이 Object가 아닌 경우 예외 처리
-			if (root->type != JNode::JType::OBJECT) {
-				//std::cout << "JsonAPI is Not Object Type." << std::endl;
-				return false;
-			}
-			return true;
-		}
-
-		bool Root_Type_Is_Array() {
-			//Root의 타입이 Array가 아닌 경우 예외 처리
-			if (root->type != JNode::JType::ARRAY) {
-				//std::cout << "JsonAPI is Not Array Type." << std::endl;
-				return false;
-			}
-			return true;
-		}
-
-		bool Root_Type_Is_Single() {
-			//Root의 타입이 단일 타입이 아닌 경우 예외 처리
-			if (root->type != JNode::JType::STRING && 
-				root->type != JNode::JType::NUMBER && 
-				root->type != JNode::JType::BOOL && 
-				root->type != JNode::JType::DOUBLE) {
-				std::cout << "JsonAPI is Not Single Type." << std::endl;
-				return false;
-			}
-			return true;
-		}
-
-		void Single_Type_Delete_Root() {
-			switch (root->type) {
-			case  JNode::JType::STRING:
-				delete static_cast<Dynamic::DynamicStr*>(root->ptype); // 문자열 타입 삭제
-				root->ptype = nullptr; // 포인터 초기화
-				break;
-			case JNode::JType::NUMBER:
-				delete static_cast<int*>(root->ptype); // 정수 타입 삭제
-				root->ptype = nullptr; // 포인터 초기화
-				break;
-			case JNode::JType::DOUBLE:
-				delete static_cast<double*>(root->ptype); // 실수 타입 삭제
-				root->ptype = nullptr; // 포인터 초기화
-				break;
-			case JNode::JType::BOOL:
-				delete static_cast<bool*>(root->ptype); // 불리언 타입 삭제
-				root->ptype = nullptr; // 포인터 초기화
-				break;
-			case JNode::JType::NULL_TYPE:
-				// null 타입은 포인터를 사용하지 않음
-				root->ptype = nullptr; // 포인터 초기화
-				break;
-			default:
-				std::cout << "JsonAPI is Not Single Type." << std::endl;
-				return; // 단일 타입이 아닌 경우 예외 처리
-			}
-		}
-
-
-		//{} 일때
-		//객체 타입 처리 및 파싱 로직
-		void Obj_Ctrl(const char* obj_str) {
-			
-
-		}
-		void Obj_Parser(const char* obj_str) {
-
-		}
-
-
-		//단순히 변수 받을때
-		void operator=(JObj& obj) {
-			
-		}
-
-		//동적 인스턴스 받을때
+		//객체 배열 타입일때(JNode::JType::OBJECT, JNode::JType::ARRAY)
+		//Object 타입일때
+		/*void operator=(JObj& obj) {
+			root->type = JNode::JType::OBJECT;
+			root->ptype = static_cast<void*>(obj);
+		}*/
+		//동적변수 받을때
 		void operator=(JObj* obj) {
-			
+			root->type = JNode::JType::OBJECT;
+			root->ptype = static_cast<void*>(obj);
 		}
 
-		//[] 일때
-		//배열 타입 처리 및 파싱 로직
-		void Arr_Ctrl(const char* arr_str) {
-
+		//Array 타입일때
+		void operator=(JArr* arr) {
+			root->type = JNode::JType::ARRAY;
+			root->ptype = static_cast<void*>(arr);
 		}
 
-		//단순히 변수 받을때
-		void operator=(JArr& arr) {
-
+		//단일 타입일때(int, double, string, bool 등)
+		// 1. 덮어쓰기가 가능하도록
+		//String 타입일때
+		void operator=(const char* str) {
+			root->Set_Type(JNode::JType::STRING);
+			Dynamic::DynamicStr* strPtr = static_cast<Dynamic::DynamicStr*>(root->Get_Ptype());
+			strPtr->Set_Str(str);
 		}
 
-		//동적 인스턴스 받을때
-		void operator= (JArr * arr){
-
+		//Number 타입일때
+		void operator=(int number) {
+			root->Set_Type(JNode::JType::NUMBER);
+			int* numPtr = static_cast<int*>(root->Get_Ptype());
+			*numPtr = number;
 		}
 
-
-		// 단일 타입일때
-
-		// Js = "Hello";  -> "Hello"   문자열일때
-		void operator=(const char* value) {
-			if (!Root_Type_Is_Null()) {	//타입이 존재함을 의미 Node가 존재함
-				Single_Type_Delete_Root();
-			}
-
-			root->Set_Type(JNode::JType::STRING); // 타입 설정
-			
-			Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(root->ptype);
-			str->Set_Str(value); // 문자열 설정
-
-			
-			//만약에 문자열이 "{ ~~ }" 혹은 "[]" 일때
-			//str[0] == '{' && str[str->str_last_focus] == '}' 일때는 객체인거로 넘겨주기 및 파싱해주기
-			//str[0] == '[' && str[str->str_last_focus] == ']' 일때는 배열인걸로 넘겨주기 및 파싱해주기
-			short first_focus = 0;
-			short last_focus = str->str_last_focus;
-			if ((*str)[first_focus] == '\"' && (*str)[last_focus] == '\"') {
-				first_focus++;
-				last_focus--;
-			}
-
-			//Obj라고 판단
-			if ((*str)[first_focus] == '{' && (*str)[last_focus] == '}') {
-				Obj_Ctrl(str->Get_Str());
-			}
-
-
+		//Boolean 타입일때
+		void operator=(bool boolean) {
+			root->Set_Type(JNode::JType::BOOL);
+			bool* boolPtr = static_cast<bool*>(root->Get_Ptype());
+			*boolPtr = boolean;
 		}
 
-		// Js = 123;  -> 123   정수일때
-		void operator=(int value) {
-			if (!Root_Type_Is_Null()) {	//타입이 존재함을 의미 Node가 존재함
-				Single_Type_Delete_Root();
-			}
-			root->Set_Type(JNode::JType::NUMBER); // 타입 설정
-
-			int* num = static_cast<int*>(root->ptype);
-			*num = value; // 정수 설정
+		//Double 타입일때
+		void operator=(double number) {
+			root->Set_Type(JNode::JType::DOUBLE);
+			double* doublePtr = static_cast<double*>(root->Get_Ptype());
+			*doublePtr = number;
 		}
 
-		// Js = 12.34;  -> 12.34   실수일때
-		void operator=(double value) {
-			if (!Root_Type_Is_Null()) {	//타입이 존재함을 의미 Node가 존재함
-				Single_Type_Delete_Root();
-			}
-			root->Set_Type(JNode::JType::DOUBLE); // 타입 설정
-			double* dbl = static_cast<double*>(root->ptype);
-			*dbl = value; // 실수 설정
-		}
-
-		// Js = true;  -> true   불리언일때
-		void operator=(bool value) {
-			if (!Root_Type_Is_Null()) {	//타입이 존재함을 의미 Node가 존재함
-				Single_Type_Delete_Root();
-			}
-			root->Set_Type(JNode::JType::BOOL); // 타입 설정
-			bool* bol = static_cast<bool*>(root->ptype);
-			*bol = value; // 불리언 설정
-		}
-
+		//Null 타입일때
 		void operator=(std::nullptr_t) {
-			if (!Root_Type_Is_Null()) {	//타입이 존재함을 의미 Node가 존재함
-				Single_Type_Delete_Root();
-			}
-			root->Set_Type(JNode::JType::NULL_TYPE); // 타입 설정
-			root->ptype = nullptr; // null 타입은 포인터를 사용하지 않음
+			root->Set_Type(JNode::JType::NULL_TYPE);
 		}
+
+
 
 	private:
 		JNode* root;
-
 	};
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#define OBJ JSON::JObj()		//{}를 의미
-#define ARR	JSON::JArr()		//[]를 의미
-
-	class JsonCtrl {
-	public:
-		JsonCtrl() : root(nullptr), Obj(nullptr), Arr(nullptr){}
-		JsonCtrl(JNode::JType JsonType) : root(nullptr), Obj(nullptr), Arr(nullptr){
-			root = new JNode(JsonType); // Json의 루트 노드 생성 Type, ptype 초기화
-		}
-		
-		//3개 변수 소멸
-		~JsonCtrl() {
-			if (root != nullptr) {
-				delete root;
-				root = nullptr;
-			}
-			if(Obj != nullptr) {
-				delete Obj;
-				Obj = nullptr;
-			}
-			if(Arr != nullptr) {
-				delete Arr;
-				Arr = nullptr;
-			}
-		}
-
-		//root 노드초기화
-		void operator = (const JNode::JType& JsonType) {
-			if (root != nullptr) {
-				std::cout << "JsonCtrl is Already Initialized." << std::endl;
-				return;
-			}
-
-			root = new JNode(JsonType); // Json의 루트 노드 생성 Type, ptype 초기화
-		}
-
-		//예외처리 부분
-		bool Exception_Root_Null() {
-			if (root == nullptr) {
-				std::cout << "JsonCtrl is Not Initialized." << std::endl;
-				return true;
-			}
-			return false;
-		}
-		bool Exception_Root_Type_Null() {
-			if (root->ptype == nullptr) {
-				std::cout << "JsonCtrl is Not Initialized." << std::endl;
-				return true;
-			}
-			return false;
-		}
-
-		//Node가 Object 타입인 경우
-
-
-
-		//Node Arr 타입인 경우
-
-
-
-		//Node 단일 타입인 경우	(int, double, bool, string)
-		//타입이 다르면 덮어쓰기 금지인 Set_Value
-		void Set_Value(const char* value) {
-			//문자열 리터럴로 받을 경우
-			Set_Value<const char*>(value);
-		}
-		template<typename T>
-		void Set_Value(const T& value) {
-			if (Exception_Root_Null() || Exception_Root_Type_Null()) return;
-
-			if (root->type != root->GetJsonType<T>()) {
-				std::cout << "해당 타입으로 값을 설정할 수 없습니다." << std::endl;
-				return;
-			}
-
-			if (root->type == JNode::JType::OBJECT || root->type == JNode::JType::ARRAY) {
-				std::cout << "단일타입만 값을 설정할 수 있습니다." << std::endl;
-				return;
-			}
-
-			if (root->ptype) {
-				try {
-					switch (root->type) {
-					case JNode::JType::NUMBER:
-						if constexpr (std::is_convertible_v<T, int>) {
-							int* num = static_cast<int*>(root->ptype);
-							*num = static_cast<int>(value); // T를 int로 변환
-							std::cout << "Set_Value: " << *num << std::endl;
-						}
-						else throw std::runtime_error("타입 변환 오류: T는 int로 변환할 수 없습니다.");
-						break;
-
-					case JNode::JType::STRING:
-						if constexpr (std::is_convertible_v<T, const char*>) {
-							Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(root->ptype);
-							str->Set_Str(static_cast<const char*>(value)); // T를 const char*로 변환
-							std::cout << "Set_Value: " << str->Get_Str() << std::endl;
-						}
-						else throw std::runtime_error("타입 변환 오류: T는 const char*로 변환할 수 없습니다.");
-						break;
-
-					case JNode::JType::BOOL:
-						if constexpr (std::is_convertible_v<T, bool>) {
-							bool* bol = static_cast<bool*>(root->ptype);
-							*bol = static_cast<bool>(value); // T를 bool로 변환
-							std::cout << "Set_Value: " << *bol << std::endl;
-						}
-						else throw std::runtime_error("타입 변환 오류: T는 bool로 변환할 수 없습니다.");
-						break;
-
-					case JNode::JType::DOUBLE:
-						if constexpr (std::is_convertible_v<T, double>) {
-							double* dbl = static_cast<double*>(root->ptype);
-							*dbl = static_cast<double>(value); // T를 double로 변환
-							std::cout << "Set_Value: " << *dbl << std::endl;
-						}
-						else throw std::runtime_error("타입 변환 오류: T는 double로 변환할 수 없습니다.");
-						break;
-
-					default:
-
-						break;
-					}
-				}catch(const std::exception& e) {
-					std::cout << "예외 발생: " << e.what() << std::endl;
-					return;
-				}
-				
-
-				
-
-
-				
-			}
-
-		}
-
-		//강제 타입 변경 
-		template<typename T>
-		void Force_Set_Value(const T& value) {
-			if (Exception_Root_Null() || Exception_Root_Type_Null()) return;
-
-			if (root->type == JNode::JType::OBJECT || root->type == JNode::JType::ARRAY) {
-				std::cout << "단일타입만 값을 설정할 수 있습니다." << std::endl;
-				return;
-			}
-
-			if(root->type != root->GetJsonType<T>()) {
-				if (root->GetJsonType<T>() == JNode::JType::OBJECT || root->GetJsonType<T>() == JNode::JType::ARRAY) {
-					std::cout << "해당 타입으로 값을 설정할 수 없습니다. 객체나 배열 타입은 강제 설정할 수 없습니다." << std::endl;
-					return;
-				}
-
-				//타입이 다르면 덮어쓰기 가능하도록 만들어야합니다.
-				std::cout << "해당 타입으로 값을 설정할 수 없습니다. 강제 설정합니다." << std::endl;
-				root->Set_Type(root->GetJsonType<T>()); // 새로운 타입으로 설정
-			}
-
-			if (root->ptype) {
-				try {
-					switch (root->type) {
-					case JNode::JType::NUMBER:
-						if constexpr (std::is_convertible_v<T, int>) {
-							int* num = static_cast<int*>(root->ptype);
-							*num = static_cast<int>(value); // T를 int로 변환
-							std::cout << "Set_Value: " << *num << std::endl;
-						}
-						else throw std::runtime_error("타입 변환 오류: T는 int로 변환할 수 없습니다.");
-						break;
-
-					case JNode::JType::STRING:
-						if constexpr (std::is_convertible_v<T, const char*>) {
-							Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(root->ptype);
-							str->Set_Str(static_cast<const char*>(value)); // T를 const char*로 변환
-							std::cout << "Set_Value: " << str->Get_Str() << std::endl;
-						}
-						else throw std::runtime_error("타입 변환 오류: T는 const char*로 변환할 수 없습니다.");
-						break;
-
-					case JNode::JType::BOOL:
-						if constexpr (std::is_convertible_v<T, bool>) {
-							bool* bol = static_cast<bool*>(root->ptype);
-							*bol = static_cast<bool>(value); // T를 bool로 변환
-							std::cout << "Set_Value: " << *bol << std::endl;
-						}
-						else throw std::runtime_error("타입 변환 오류: T는 bool로 변환할 수 없습니다.");
-						break;
-
-					case JNode::JType::DOUBLE:
-						if constexpr (std::is_convertible_v<T, double>) {
-							double* dbl = static_cast<double*>(root->ptype);
-							*dbl = static_cast<double>(value); // T를 double로 변환
-							std::cout << "Set_Value: " << *dbl << std::endl;
-						}
-						else throw std::runtime_error("타입 변환 오류: T는 double로 변환할 수 없습니다.");
-						break;
-
-					default:
-
-						break;
-					}
-				}
-				catch (const std::exception& e) {
-					std::cout << "예외 발생: " << e.what() << std::endl;
-					return;
-				}
-
-
-
-
-
-
-			}
-
-		}
-
-		
-		//단일 타입의 값을 가져오는 메소드
-		template<typename T>
-		T Get_Value() {
-			if (Exception_Root_Null() || Exception_Root_Type_Null()) {
-				throw std::runtime_error("비어 있는 노드");
-			}
-
-			auto expected = root->GetJsonType<T>();
-			if (root->type != expected) {
-				std::cerr << "[ERROR] 타입 불일치. root->type = " << (int)root->type
-					<< ", 요청된 타입 = " << (int)expected << std::endl;
-				throw std::runtime_error("타입 불일치");
-			}
-			
-			return *static_cast<T*>(root->ptype);
-		}
-
-	private:
-		JNode* root; // Json의 루트 노드
-		JObj* Obj; // Json 객체
-		JArr* Arr; // Json 배열
-
-	};
-
-/*
-	using namespace std;
-	using namespace Dynamic;
-	using namespace JSON;
-
-#define JSON_OBJ JSON::JObj()
-#define JSON_ARR JSON::JArr()
-#define OPER_ASSIGN(para_type, Jenum_type)\
-void operator=(const para_type& value){\
-		if(key == nullptr) {\
-			cout << "JsonCtrl is Not Obj." << endl;\
-			return;\
-		}\
-		JObj* obj = static_cast<JObj*>(parent.root->ptype);\
-		obj->Set_Key(key->Get_Str()); \
-		obj->Set_Value(Jenum_type); \
-		*static_cast<para_type*>(obj->value.ptype) = value; \
-		parent.Obj = parent.Obj->next;\
-	}
-
-#define OPER_DEFAULT
-
-	//Json 처리 부분 자료구조 사용 API라고 생각하면 될거 같습니다.
-	class JsonCtrl {
-	public:
-		JsonCtrl() : root(nullptr), Child(nullptr), Obj(nullptr) {}
-		JsonCtrl(JNode::JType rootType) : root(new JNode(rootType)), Child(nullptr), Obj(nullptr) {
-			if (rootType == JNode::JType::OBJECT)
-				Obj = static_cast<JObj*>(root->ptype);
-		}
-		~JsonCtrl() {
-			if (root != nullptr) {
-				delete root;
-				root = nullptr; // 포인터 초기화
-			}
-			if (Child != nullptr) {
-				delete Child;
-				Child = nullptr; // 포인터 초기화
-			}
-			if (Obj != nullptr) {
-				delete Obj;
-				Obj = nullptr; // 포인터 초기화
-			}
-		}
-
-		class Obj_Ctrl {		//무조건 객체 타입일때만 사용되는 Push용 클래스라고 보면 됩니다.
-			Dynamic::DynamicStr* key; // 키 값
-			JsonCtrl& parent; // 부모 JsonCtrl 객체 참조
-
-		public:
-			Obj_Ctrl(JsonCtrl& parentCtrl, const char* k) : parent(parentCtrl) {
-				if (k == "" || k == "arr") {
-					cout << "This Node Not Obj Type" << endl;
-					key = nullptr;
-				}
-
-				JObj* Excep_Key = static_cast<JObj*>(parent.root->ptype);
-
-				for (; ;) {
-					if (Excep_Key == nullptr) break; //이미 존재하는 키가 없으면 종료
-
-					if (Excep_Key->key.Get_Str() == k) {
-						// Key에대한 Value가 이미 존재하는 경우 값 덮어쓰기
-						key = &(Excep_Key->key);
-						return;
-					}
-					Excep_Key = Excep_Key->next; // 다음 객체로 이동
-				}
-
-				key = new Dynamic::DynamicStr(128); // 키 값 동적 할당
-				key->Set_Str(k); // 키 값 설정
-			}
-			~Obj_Ctrl() {
-				if (key != nullptr) {
-					delete key; // 동적 할당된 키 값 해제
-					key = nullptr; // 포인터 초기화
-					parent.Child->key = nullptr;
-				}
-			}
-
-			//자동 타입으로 하면 개발자가 어떤 타입인지 알기가 어려우니 여러 연산자 오버로딩으로 노가다 해야할듯
-			
-			//1. Obj 타입
-			OPER_ASSIGN(JSON::JObj, JNode::JType::OBJECT)
-			//2. Arr 타입
-			OPER_ASSIGN(JSON::JArr, JNode::JType::ARRAY)
-			//3. Str 타입
-			void operator=(const char* value) {
-				if (key == nullptr) {
-					cout << "JsonCtrl is Not Obj." << endl; return;
-				} 
-				JObj* obj = static_cast<JObj*>(parent.root->ptype); 
-				obj->Set_Key(key->Get_Str()); 
-				obj->Set_Value(JNode::JType::STRING);
-				Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(obj->value.ptype);
-				str->Set_Str(value);
-				parent.Obj = parent.Obj->next; // 다음 객체로 이동
-			}
-			//4. Num 타입
-			OPER_ASSIGN(int, JNode::JType::NUMBER)
-			//5. Bol 타입
-			OPER_ASSIGN(bool, JNode::JType::BOOL)
-			//6. Double 타입
-			OPER_ASSIGN(double, JNode::JType::DOUBLE)
-			//7. NULL 타입
-			void operator=(const void* value) {
-				JObj* Excep_Key = static_cast<JObj*>(parent.root->ptype);
-
-				for (; ;) {
-					if (Excep_Key == nullptr) break; //이미 존재하는 키가 없으면 종료
-
-					if (Excep_Key->key.Get_Str() == value) {
-						cout << "The Key Already Exists" << endl;
-						return; // 이미 존재하는 키인 경우 예외 처리
-					}
-					Excep_Key = Excep_Key->next; // 다음 객체로 이동
-				}
-
-				if (key == nullptr) {
-					cout << "JsonCtrl is Not Obj." << endl; return;
-				} JObj* obj = static_cast<JObj*>(parent.root->ptype); 
-				obj->Set_Key(key->Get_Str()); 
-				obj->Set_Value(JNode::JType::NULL_TYPE);
-				parent.Obj = parent.Obj->next; // 다음 객체로 이동
-			}
-
-			operator int() {
-				if (key == nullptr) {
-					cout << "JsonCtrl is Not Obj." << endl;
-					return 0;
-				}
-			}
-
-			operator double() {
-				printf("Test2");
-				return 0.0;
-			}
-			
-		};
-
-		//사용자 API 함수들
-		//Push 넣기
-		//{} 객체 기준 var["key"] = value;
-		Obj_Ctrl& operator[](const char* key) {
-			// JsonCtrl 객체가 초기화되지 않은 경우 혹은 객체가 아닌 경우
-			if (root == nullptr) {
-				//nullptr 인 경우 예외 처리
-				static Obj_Ctrl dummy(*this, "");
-				return dummy;
-			}
-			else if (root->type == JNode::JType::ARRAY) {
-				//배열 타입인 경우 넘겨주기
-				static Obj_Ctrl dummy(*this, "arr");
-				return dummy;
-			}
-
-
-			if (root->type == JNode::JType::OBJECT) {
-				Child = new Obj_Ctrl(*this, key);
-				return *Child; // Obj_Ctrl 객체 반환
-			}
-			else {
-				//잘못된 타입인 경우 예외 처리
-				static Obj_Ctrl dummy(*this, "");
-				return dummy;
-			}
-
-
-		}
-
-		//Pop 빼기
-		
-
-	private:
-		JObj* Obj;			// Json 객체
-		Obj_Ctrl* Child;	// 리소스 하위 객체
-		JNode* root;		// Json의 루트 노드
-	};
-
-	*/
 }
 
