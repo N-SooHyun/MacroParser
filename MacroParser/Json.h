@@ -26,9 +26,8 @@ namespace JSON {
 			STRING,		//문자열
 			NUMBER,		//숫자
 			BOOL,		//true false
-			NULL_TYPE,	//null
 			DOUBLE,		//소수
-			INVALID,	//잘못된 타입
+			NULL_TYPE,	//null
 		};
 		JNode() : type(JType::NULL_TYPE), ptype(nullptr){}
 		JNode(JType nodeType) : type(nodeType), ptype(nullptr) {
@@ -55,7 +54,7 @@ namespace JSON {
 				delete ptype;
 			}
 			ptype = nullptr;
-			type = JNode::JType::INVALID; // 타입을 INVALID로 설정하여 안전하게 초기화
+			type = JNode::JType::NULL_TYPE; // 타입을 INVALID로 설정하여 안전하게 초기화
 		}
 
 		JNode(const JNode& other) = delete; // 복사 생성자 삭제
@@ -117,7 +116,7 @@ namespace JSON {
 
 
 	//---------------------------------------------------------------------------------
-	//-------------------------------Json사용자 호출부분-------------------------------
+	//-------------------------------Json사용자 호출부분--------------------------------
 	//---------------------------------------------------------------------------------
 
 	//JSON 사용 규칙
@@ -181,7 +180,7 @@ namespace JSON {
 
 	class JsonCtrl {
 	public:
-		JsonCtrl() : root(nullptr) {}
+		JsonCtrl() : root(new JNode(JNode::JType::NULL_TYPE)) {}
 		JsonCtrl(JNode::JType rootType) {
 			root = new JNode(rootType);
 		}
@@ -194,9 +193,26 @@ namespace JSON {
 		}
 
 
+		//예외처리
+		//JNode가 nullptr일때
+		bool Is_Null() const {
+			return root == nullptr;
+		}
+		bool Overwrite() {
+			if(Is_Null()) {
+				return false; // root가 nullptr이면 덮어쓸 수 없음
+			}
+			delete root;
+			root = nullptr;
+			root = new JNode(JNode::JType::NULL_TYPE); // 새로운 JNode 생성
+			return true;
+		}
+
+
 		//<대입 연산자 오버로딩>
 		//enum으로 받을때
 		void operator=(JNode::JType rootType) {
+			Overwrite();
 			root = new JNode(rootType);
 		}
 
@@ -208,12 +224,14 @@ namespace JSON {
 		}*/
 		//동적변수 받을때
 		void operator=(JObj* obj) {
+			Overwrite();
 			root->type = JNode::JType::OBJECT;
 			root->ptype = static_cast<void*>(obj);
 		}
 
 		//Array 타입일때
 		void operator=(JArr* arr) {
+			Overwrite();
 			root->type = JNode::JType::ARRAY;
 			root->ptype = static_cast<void*>(arr);
 		}
@@ -222,6 +240,7 @@ namespace JSON {
 		// 1. 덮어쓰기가 가능하도록
 		//String 타입일때
 		void operator=(const char* str) {
+			Overwrite();
 			root->Set_Type(JNode::JType::STRING);
 			Dynamic::DynamicStr* strPtr = static_cast<Dynamic::DynamicStr*>(root->Get_Ptype());
 			strPtr->Set_Str(str);
@@ -229,6 +248,7 @@ namespace JSON {
 
 		//Number 타입일때
 		void operator=(int number) {
+			Overwrite();
 			root->Set_Type(JNode::JType::NUMBER);
 			int* numPtr = static_cast<int*>(root->Get_Ptype());
 			*numPtr = number;
@@ -236,6 +256,7 @@ namespace JSON {
 
 		//Boolean 타입일때
 		void operator=(bool boolean) {
+			Overwrite();
 			root->Set_Type(JNode::JType::BOOL);
 			bool* boolPtr = static_cast<bool*>(root->Get_Ptype());
 			*boolPtr = boolean;
@@ -243,6 +264,7 @@ namespace JSON {
 
 		//Double 타입일때
 		void operator=(double number) {
+			Overwrite();
 			root->Set_Type(JNode::JType::DOUBLE);
 			double* doublePtr = static_cast<double*>(root->Get_Ptype());
 			*doublePtr = number;
@@ -250,6 +272,7 @@ namespace JSON {
 
 		//Null 타입일때
 		void operator=(std::nullptr_t) {
+			Overwrite();
 			root->Set_Type(JNode::JType::NULL_TYPE);
 		}
 

@@ -1,8 +1,15 @@
 #pragma once
 
-#include <windows.h>
+#pragma once
 
-#define TIMER_INTERVAL 1000 // 타이머 간격 (ms)
+#include <windows.h>
+#include <stdio.h>
+#include <Math.h>
+#include <stdlib.h>
+
+#define TICK 100
+
+#define TIMER_INTERVAL TICK // 타이머 간격 (ms)  0.01sec
 
 // 전역 변수
 static volatile BOOL timerRunning = FALSE;       // 타이머 상태
@@ -12,23 +19,23 @@ static HANDLE hMutex = NULL;                     // 뮤텍스 핸들
 
 // 타이머 스레드 함수
 DWORD WINAPI TimerThread(LPVOID lpParam) {
-    while (1) {
-        if (timerRunning) {
-            Sleep(TIMER_INTERVAL);
+	while (1) {
+		if (timerRunning) {
+			Sleep(TIMER_INTERVAL);
 
-            WaitForSingleObject(hMutex, INFINITE);
-            elapsedTime++;
-            ReleaseMutex(hMutex);
-        }
-        else if (timerExit) {
-            break;
-        }
-        else {
-            Sleep(100);
-        }
-    }
-    return 0;
-}
+			WaitForSingleObject(hMutex, INFINITE);
+			elapsedTime += TICK;
+			ReleaseMutex(hMutex);
+		}
+		else if (timerExit) {
+			break;
+		}
+		else {
+			Sleep(100);
+		}
+	}
+	return 0;
+}           // 뮤텍스 핸들
 
 // 타이머 컨트롤 함수
 int Timer_Ctrl() {
@@ -120,4 +127,215 @@ END:
     CloseHandle(hMutex);
 
     return 0;
+}
+
+int Mov_Mt_Pos(double Cur_Pos, double Trg_Pos, double Trg_Spd, HANDLE& hThread, int Cur_Dac) {
+	static int Cur_Tm = 0;
+	const static int Trg_Tm = (Trg_Pos - Cur_Pos) / Trg_Spd * 1000;
+	static long lastPrintTime = -1;
+
+	WaitForSingleObject(hMutex, INFINITE);
+	Cur_Tm = elapsedTime;
+	ReleaseMutex(hMutex);
+
+	if (Cur_Tm != lastPrintTime) {
+		//printf("Time: %ld, DAC: %d, Pos: %.3f\n", Cur_Tm, Cur_Dac, Cur_Pos);
+		Cur_Pos = Cur_Pos + Trg_Spd * (TICK / 1000.0);
+		lastPrintTime = Cur_Tm;
+	}
+
+	return Cur_Pos;
+}
+
+int Incre_Dac() {
+	HANDLE hThread = NULL;
+
+	// 뮤텍스 생성
+	hMutex = CreateMutex(NULL, FALSE, NULL);
+	if (hMutex == NULL) {
+		printf("뮤텍스 생성 실패: %lu\n", GetLastError());
+		return 1;
+	}
+
+	// 타이머 스레드 생성
+	hThread = CreateThread(
+		NULL, 0, TimerThread, NULL, 0, NULL
+	);
+
+	if (hThread == NULL) {
+		printf("스레드 생성 실패: %lu\n", GetLastError());
+		CloseHandle(hMutex);
+		return 1;
+	}
+
+	const double Trg_Spd = 50.000;
+	int DbgDac = 0;
+
+	double TrgtPosStr = 128.000;
+	double TrgtPosEnd = 500.000;
+	double TrgtPosMid = (TrgtPosEnd - TrgtPosStr) / 2 + TrgtPosStr;
+	double CurPos = TrgtPosStr;
+	UINT16 DacMin = 0;
+	UINT16 DacMax = 0;
+	UINT16 CurDac = DacMin;
+	double DacUpCal = 0.000;
+	double DacDnCal = 0.000;
+
+	printf("입력하세요\n");
+	printf("Dac Min : ");
+	scanf_s("%hu", &DacMin);
+	printf("Dac Max : ");
+	scanf_s("%hu", &DacMax);
+
+	while (1) {
+		timerRunning = TRUE;
+		CurPos = Mov_Mt_Pos(CurPos, TrgtPosEnd, Trg_Spd, hThread, CurDac);
+
+		if (CurDac != DbgDac) {
+			printf("Cur_Pos: %.3f, DAC: %hu, Trg_Pos: %.3f\n", CurPos, CurDac, TrgtPosEnd);  // 디버깅용 출력
+			DbgDac = CurDac;
+		}
+
+		if (CurPos <= TrgtPosMid) {
+			//printf("CurPos: %.3f, TrgPosMid: %.3f\n", CurPos, TrgtPosMid); 
+			DacUpCal = (CurPos - TrgtPosStr) / (TrgtPosMid - TrgtPosStr);
+			if (DacUpCal > 1.0) DacUpCal = 1.0;
+			if (DacUpCal < 0.0) DacUpCal = 0.0;
+
+			//등속
+			double ConsSpd = DacUpCal;
+			//J형
+			double TypeJ = DacUpCal * DacUpCal;
+			//r형
+			double TypeR = (-DacUpCal * DacUpCal) + (2 * DacUpCal);
+
+			//등속
+			//CurDac = (int)(DacMin + (DacMax - DacMin) * ConsSpd);
+			//J형
+			CurDac = (int)(DacMin + (DacMax - DacMin) * TypeJ);
+			//R형
+			//CurDac = (int)(DacMin + (DacMax - DacMin) * TypeR);
+
+		}
+		else if (CurPos <= TrgtPosEnd) {
+			//printf("CurPos: %.3f, TrgPosEnd: %.3f\n", CurPos, TrgtPosEnd);
+			DacDnCal = (CurPos - TrgtPosMid) / (TrgtPosEnd - TrgtPosMid);
+
+			if (DacDnCal > 1.0) DacDnCal = 1.0;
+			if (DacDnCal < 0.0) DacDnCal = 0.0;
+
+			//등속
+			double ConsSpd = DacDnCal;
+			//R형
+			double TypeR = DacDnCal * DacDnCal;
+			//J형
+			double TypeJ = (-DacDnCal * DacDnCal) + (2 * DacDnCal);
+
+			//등속
+			//CurDac = (int)(DacMax - (DacMax - DacMin) * ConsSpd);
+			//J형
+			//CurDac = (int)(DacMax - (DacMax - DacMin) * TypeJ);
+			//R형
+			CurDac = (int)(DacMax - (DacMax - DacMin) * TypeR);
+		}
+
+		if (CurPos > TrgtPosEnd) break;
+	}
+
+	//타이머 종료
+	WaitForSingleObject(hMutex, INFINITE);
+	timerRunning = FALSE;
+	timerExit = TRUE;
+	ReleaseMutex(hMutex);
+	WaitForSingleObject(hThread, INFINITE);
+	CloseHandle(hThread);
+	CloseHandle(hMutex);
+
+	return 0;
+}
+
+FILE* File_Write() {
+	FILE* pFile = NULL;
+
+	fopen_s(&pFile, "..\\Excel_Json_File\\DacGraph.json", "w");
+
+	return pFile;
+}
+
+void No_Timer_Dac() {
+
+	FILE* pFile = File_Write();
+
+	const double Trg_Spd = 50.000;
+	int DbgDac = 0;
+
+	double TrgtPosStr = 128.000;
+	double TrgtPosEnd = 500.000;
+	double TrgtPosMid = (TrgtPosEnd - TrgtPosStr) / 2 + TrgtPosStr;
+	double CurPos = TrgtPosStr;
+	UINT16 DacMin = 0;
+	UINT16 DacMax = 0;
+	UINT16 CurDac = DacMin;
+	double DacUpCal = 0.000;
+	double DacDnCal = 0.000;
+
+
+	printf("입력하세요\n");
+	printf("Dac Min : ");
+	scanf_s("%hu", &DacMin);
+	printf("Dac Max : ");
+	scanf_s("%hu", &DacMax);
+
+	fprintf(pFile, "{\"TrgtStr\" : %.3f, \"TrgtEnd\" : %.3f, \"DacStr\" : %hu, \"DacEnd\" : %hu, \n \"DacGraph\":[", TrgtPosStr, TrgtPosEnd, CurDac, DacMax);
+	while (1) {
+		fprintf(pFile, "{\"CurPos\":%.3f, \"CurDac\":%hu}", CurPos, CurDac);
+		if (CurPos <= TrgtPosMid) {
+			DacUpCal = (CurPos - TrgtPosStr) / (TrgtPosMid - TrgtPosStr);
+			if (DacUpCal > 1.0) DacUpCal = 1.0;
+			if (DacUpCal < 0.0) DacUpCal = 0.0;
+
+			//등속
+			double ConsSpd = DacUpCal;
+			//J형
+			double TypeJ = DacUpCal * DacUpCal;
+			//r형
+			double TypeR = (-DacUpCal * DacUpCal) + (2 * DacUpCal);
+
+			//등속
+			//CurDac = (int)(DacMin + (DacMax - DacMin) * ConsSpd);
+			//J형
+			//CurDac = (int)(DacMin + (DacMax - DacMin) * TypeJ);
+			//R형
+			CurDac = (int)(DacMin + (DacMax - DacMin) * TypeR);
+
+		}
+		else if (CurPos <= TrgtPosEnd) {
+			//printf("CurPos: %.3f, TrgPosEnd: %.3f\n", CurPos, TrgtPosEnd);
+			DacDnCal = (CurPos - TrgtPosMid) / (TrgtPosEnd - TrgtPosMid);
+
+			if (DacDnCal > 1.0) DacDnCal = 1.0;
+			if (DacDnCal < 0.0) DacDnCal = 0.0;
+
+			//등속
+			double ConsSpd = DacDnCal;
+			//R형
+			double TypeR = DacDnCal * DacDnCal;
+			//J형
+			double TypeJ = (-DacDnCal * DacDnCal) + (2 * DacDnCal);
+
+			//등속
+			//CurDac = (int)(DacMax - (DacMax - DacMin) * ConsSpd);
+			//J형
+			//CurDac = (int)(DacMax - (DacMax - DacMin) * TypeJ);
+			//R형
+			CurDac = (int)(DacMax - (DacMax - DacMin) * TypeR);
+		}
+
+		if (CurPos > TrgtPosEnd) break;
+		CurPos += 5;
+		fprintf(pFile, ",\n");
+		printf("Cur_Pos: %.3f, DAC: %hu, Trg_Pos: %.3f\n", CurPos, CurDac, TrgtPosEnd);  // 디버깅용 출력
+	}
+	fprintf(pFile, "]}\n");
+	fclose(pFile);
 }

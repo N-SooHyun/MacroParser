@@ -33,9 +33,12 @@ void JsonAPI_Test() {
 	const char* test = "Test";
 
 	ctrl = test;
-	ctrl = 123;
-	ctrl = 123.456;
-	ctrl = true;
+	
+	JsonCtrl* pCtrl = new JsonCtrl();
+	*pCtrl = "Test";
+	*pCtrl = JNode::JType::OBJECT;
+
+	delete pCtrl;
 }
 
 void main() {
@@ -50,5 +53,7 @@ void main() {
 	//Timer_Ctrl();
 	
 	JsonAPI_Test();
+
+	//No_Timer_Dac();
 
 }

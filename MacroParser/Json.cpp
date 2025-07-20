@@ -26,7 +26,6 @@ void JNode::Set_Type(JType nodeType) {
 		ptype = new double();
 		break;
 	case JType::NULL_TYPE:
-	case JType::INVALID:
 		ptype = nullptr; // null 타입은 포인터를 사용하지 않음
 		break;
 	default:
