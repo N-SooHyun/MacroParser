@@ -57,7 +57,7 @@ void JsonAPI_Test() {
 
 
 	//Pop 빼는 부분 만들어야 함
-	
+	//int num = ctrl;
 
 
 }
