@@ -180,8 +180,8 @@ namespace JSON {
 
 	class JsonCtrl {
 	public:
-		JsonCtrl() : root(new JNode(JNode::JType::NULL_TYPE)) {}
-		JsonCtrl(JNode::JType rootType) {
+		JsonCtrl() : root(new JNode(JNode::JType::NULL_TYPE)), next(new JNode(JNode::JType::NULL_TYPE)), dataPop(nullptr) {}
+		JsonCtrl(JNode::JType rootType) : next(new JNode(JNode::JType::NULL_TYPE)), dataPop(nullptr) {
 			root = new JNode(rootType);
 		}
 
@@ -192,6 +192,10 @@ namespace JSON {
 			}
 		}
 
+#define DELETE_ROOT \
+	delete root; \
+	root = nullptr; \
+	root = new JNode(JNode::JType::NULL_TYPE); // 새로운 JNode 생성
 
 		//예외처리
 		//JNode가 nullptr일때
@@ -202,14 +206,12 @@ namespace JSON {
 			if(Is_Null()) {
 				return false; // root가 nullptr이면 덮어쓸 수 없음
 			}
-			delete root;
-			root = nullptr;
-			root = new JNode(JNode::JType::NULL_TYPE); // 새로운 JNode 생성
+			DELETE_ROOT
 			return true;
 		}
 
 
-		//<대입 연산자 오버로딩>
+		//<대입 연산자 오버로딩 - Get 부분>
 		//enum으로 받을때
 		void operator=(JNode::JType rootType) {
 			Overwrite();
@@ -229,6 +231,25 @@ namespace JSON {
 			root->ptype = static_cast<void*>(obj);
 		}
 
+		//JNode 문자열 객체 파싱해줘야 할때
+		bool Str_Obj_Parse(const char* str) {
+			root->Set_Type(JNode::JType::OBJECT);
+			Dynamic::DynamicStr strPtr(512);
+
+			strPtr.Set_Str(str);
+
+			//파싱 본격적으로 시작
+			int i = 0;
+			int last_focus = strPtr.str_last_focus;
+
+			for (; i < last_focus; i++) {
+
+			}
+
+
+			return true;
+		}
+
 		//Array 타입일때
 		void operator=(JArr* arr) {
 			Overwrite();
@@ -236,14 +257,60 @@ namespace JSON {
 			root->ptype = static_cast<void*>(arr);
 		}
 
+		//JNode 문자열 배열 파싱해줘야할때
+		bool Str_Arr_Parse(const char* str) {
+			root->Set_Type(JNode::JType::ARRAY);
+			Dynamic::DynamicStr* strPtr = new Dynamic::DynamicStr(512);
+
+			strPtr->Set_Str(str);
+
+			//파싱 본격적으로 시작
+			std::cout << "Parsing JSON Array: " << str << std::endl;
+			std::cout << strPtr->Get_Str() << std::endl;
+
+			return true;
+		}
+
 		//단일 타입일때(int, double, string, bool 등)
 		// 1. 덮어쓰기가 가능하도록
 		//String 타입일때
 		void operator=(const char* str) {
 			Overwrite();
+
 			root->Set_Type(JNode::JType::STRING);
 			Dynamic::DynamicStr* strPtr = static_cast<Dynamic::DynamicStr*>(root->Get_Ptype());
 			strPtr->Set_Str(str);
+
+			short first_focus = 0;
+			short last_focus = strPtr->str_last_focus;
+
+			if (strPtr->Get_Str()[first_focus] == '\"' && strPtr->Get_Str()[last_focus] == '\"') {
+				first_focus++;
+				last_focus--;
+			}
+
+			if(strPtr->Get_Str()[first_focus] == '{' && strPtr->Get_Str()[last_focus] == '}') {
+				//객체 임을 판단
+				DELETE_ROOT
+				// JNode 파싱해주는 함수 호출
+				if (Str_Obj_Parse(str)) {
+					return;
+				}
+				else {
+					std::cout << "JsonCtrl::Str_Obj_Parse() Error" << std::endl;
+				}
+			}
+			else if (strPtr->Get_Str()[first_focus] == '[' && strPtr->Get_Str()[last_focus] == ']') {
+				//배열 임을 판단
+				DELETE_ROOT
+				if (Str_Arr_Parse(str)) {
+					return;
+				}
+				else {
+					std::cout << "JsonCtrl::Str_Arr_Parse() Error" << std::endl;
+				}
+			}
+
 		}
 
 		//Number 타입일때
@@ -276,11 +343,49 @@ namespace JSON {
 			root->Set_Type(JNode::JType::NULL_TYPE);
 		}
 
+		//<반환 연산자 오버로딩 - Pop 부분>
+		//객체 타입 반환
+		JsonDataPop* operator[](const char* key) {}
+		//JObj operator[](const char* key) {}
+
+		//배열 타입 반환 
+		JsonDataPop* operator[](int index) {}
+
+		//단일 타입 반환
+		operator JsonDataPop() const {
+			return JsonDataPop();
+		}
 
 
 	private:
 		JNode* root;
+		JNode* next;
+		JsonDataPop* dataPop;
 	};
 
+
+
+	class JsonDataPop {
+	private:
+		union {
+			int intVal;
+			double doubleVal;
+			bool boolVal;
+			Dynamic::DynamicStr* strVal; // 문자열을 위한 동적 문자열 객체
+			JNode* objVal; // 객체를 위한 JNode 포인터
+			JArr* arrVal; // 배열을 위한 JArr 포인터
+		};
+		enum {INT, DOUBLE, BOOL, STR, OBJ, ARR} type;
+
+	public:
+		JsonDataPop() {}
+		~JsonDataPop() {}
+
+		operator int() const {
+			if (type == INT) return intVal;
+			return static_cast<int>(doubleVal);
+		}
+
+	};
 }
 

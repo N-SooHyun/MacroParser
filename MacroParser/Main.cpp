@@ -32,13 +32,34 @@ void JsonAPI_Test() {
 	
 	const char* test = "Test";
 
-	ctrl = test;
+	
 	
 	JsonCtrl* pCtrl = new JsonCtrl();
 	*pCtrl = "Test";
 	*pCtrl = JNode::JType::OBJECT;
 
 	delete pCtrl;
+
+	ctrl = R"({"Test" : "a"})";
+
+	ctrl = "{\"a\" : \"b\"}";
+
+	ctrl = R"(["Test", 1, 2])";
+
+	ctrl = "[\"Test\", 1, 2]";
+
+
+
+
+	//Get 넣는 부분 인터페이스 거의 다 완성
+	//Get부분 파싱만 하면 거의 다 완성
+
+
+
+	//Pop 빼는 부분 만들어야 함
+	
+
+
 }
 
 void main() {
