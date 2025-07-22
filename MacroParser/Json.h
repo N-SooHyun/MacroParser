@@ -263,12 +263,12 @@ namespace JSON {
 		}
 		
 		
-		//읽기용도
-		operator JNode&() const { 
-			if (node != nullptr)
-				return *node; 
-			return JNode();
-		}
+        operator JNode&() const {  
+            if (node != nullptr)  
+                return *node;  
+            JNode defaultNode; // Create a static default JNode instance to return as a reference  
+            return defaultNode;  
+        }
 		operator JNode*() const { 
 			if (node != nullptr)
 				return node; 
@@ -276,7 +276,10 @@ namespace JSON {
 		}
 		//덮어쓰기용도
 		JsonData& operator=(const JNode& other){
-			if (node == nullptr) return JsonData();
+            if (node == nullptr) {
+            JsonData defaultData; // Create a static default JsonData instance to return as a reference
+            return defaultData;
+            }
 			
 			//값이 존재한다면 Node를 덮어쓰기를 진행해야함 깊은복사를 진행해야함
 			*node = other;
@@ -643,7 +646,7 @@ namespace JSON {
 			}
 			catch (const std::invalid_argument& e){
 				std::cout << "에러: " << e.what() << std::endl;
-				return '\0';
+				return nullptr;
 			}
 		}
 
