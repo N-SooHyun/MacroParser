@@ -30,7 +30,7 @@ namespace JSON {
 			DOUBLE,		//소수
 			NULL_TYPE,	//null
 		};
-		JNode() : type(JType::NULL_TYPE), ptype(nullptr){}
+		JNode() : type(JType::NULL_TYPE), ptype(nullptr), ObjCnt(-2), ArrCnt(-2){}
 		JNode(JType nodeType) : type(nodeType), ptype(nullptr) {
 			Set_Type(nodeType); // 타입 설정
 		}
@@ -41,7 +41,7 @@ namespace JSON {
 		JNode::JType GetJsonType();
 
 		//복사생성자
-		JNode(const JNode& other) : type(other.type), ptype(nullptr){
+		JNode(const JNode& other) : type(other.type), ptype(nullptr), ObjCnt(other.ObjCnt), ArrCnt(other.ArrCnt){
 			Set_Type(other.type); //ptype 설정
 		}
 
@@ -65,6 +65,8 @@ namespace JSON {
 		//private:
 		JType type; //노드 타입
 		void* ptype; //노드 타입에 따른 데이터 포인터
+		int ObjCnt; 
+		int ArrCnt;
 
 		friend class JObj;
 		friend class JArr;
@@ -75,7 +77,7 @@ namespace JSON {
 
 	class JObj : public JNodeBase {
 	public:
-		JObj() : key(128), value(JNode::JType::NULL_TYPE), next(nullptr), ObjCnt(-1){}
+		JObj() : key(128), value(JNode::JType::NULL_TYPE), next(nullptr){}
 		~JObj() {
 			if (next != nullptr) {
 				delete next;
@@ -84,11 +86,11 @@ namespace JSON {
 		}
 
 		//복사생성자 깊은복사
-		JObj(const JObj& other) : key(other.key), value(other.value), next(other.next), ObjCnt(other.ObjCnt){			
+		JObj(const JObj& other) : key(other.key), value(other.value), next(other.next){			
 		}
 
 		//이동생성자
-		JObj(JObj&& other) : key(other.key), value(other.value), next(other.next), ObjCnt(other.ObjCnt){
+		JObj(JObj&& other) : key(other.key), value(other.value), next(other.next){
 		}
 
 		void Set_Key(const char* k);  // 키 값 설정
@@ -97,7 +99,6 @@ namespace JSON {
 
 	//private:
 		Dynamic::DynamicStr key; // 키 값
-		int ObjCnt;
 		JNode value; // 값 (Json_Model 타입으로 정의)
 		JObj* next; // 다음 객체를 가리키는 포인터 (연결 리스트 형태로 구현 가능)
 		friend class JArr;
@@ -107,7 +108,7 @@ namespace JSON {
 
 	class JArr : public JNodeBase{
 	public:
-		JArr() : next(nullptr), value(JNode::JType::NULL_TYPE), ArrCnt(-1){}
+		JArr() : next(nullptr), value(JNode::JType::NULL_TYPE){}
 		~JArr() {
 			if (next != nullptr) {
 				delete next;
@@ -116,10 +117,10 @@ namespace JSON {
 		}
 
 		//복사생성자 깊은복사
-		JArr(const JArr& other) : value(other.value), next(other.next), ArrCnt(other.ArrCnt){}
+		JArr(const JArr& other) : value(other.value), next(other.next){}
 
 		//이동생성자
-		JArr(const JArr&& other) : value(other.value), next(other.next), ArrCnt(other.ArrCnt){}
+		JArr(const JArr&& other) : value(other.value), next(other.next){}
 
 		void Set_Value(JNode::JType nodeType);
 		void Set_Next(JArr* nextNode);
@@ -127,7 +128,6 @@ namespace JSON {
 	//private:
 		JArr* next; // 다음 배열 요소를 가리키는 포인터 (연결 리스트 형태로 구현 가능)
 		JNode value; // 배열 요소의 값 (Json_Model 타입으로 정의)
-		int ArrCnt;
 
 		friend class JsonAPI;
 	};
@@ -193,6 +193,20 @@ namespace JSON {
 	// Js.clear();  -> null 혹은 0
 
 	//---------------------------------------------------------------------------------
+#define DELETE_ROOT \
+	delete Root_Node; \
+	Root_Node = nullptr; \
+	Root_Node = new JNode(JNode::JType::NULL_TYPE); \
+	Cur_Node = Root_Node;
+
+#define NO_TYPE_THROW \
+	if (Is_Null()) {\
+		throw std::invalid_argument("안에 값이 없습니다.");\
+			}\
+	if (Not_Match_Type(curType)) {\
+		throw std::invalid_argument("타입이 맞지 않습니다.");\
+			}
+
 
 	class JsonData {
 	private:
@@ -206,10 +220,10 @@ namespace JSON {
 		//객체 생성자 키값을 통해 밸류값 찾아서 전달 해줘야함
 		JsonData(JNode* n, const char* key) : node(n){
 			try{
-				JNode* Value;
+				JNode* Value = nullptr;
 				JObj* obj = static_cast<JObj*>(node->ptype);
 
-				for (int i = 0; i<=obj->ObjCnt; i++){
+				for (int i = 0; i<=node->ObjCnt; i++){
 					//문자열 비교 해야함
 					if (obj->key.StrCat(key)){
 						node = &obj->value;
@@ -226,16 +240,15 @@ namespace JSON {
 		}
 		//배열 생성자 index를 통해 값 찾아서 전달해줘야함
 		JsonData(JNode* n, int index) : node(n){
-
 			try{
 				JNode* Value;
 				JArr* arr = static_cast<JArr*>(node->ptype);
 
-				if (arr->ArrCnt < index){
+				if (node->ArrCnt < index){
 					throw std::invalid_argument("해당 인덱스 값은 존재하지 않습니다. 배열의 크기를 확인해주세요");
 				}
 
-				for (int i = 0; i<=arr->ArrCnt; i++){
+				for (int i = 0; i<=node->ArrCnt; i++){
 					//해당 index위치까지 도달해야함 연결리스트 이거는 쩔 수 없을듯
 					arr = arr->next;
 				}
@@ -248,6 +261,8 @@ namespace JSON {
 
 
 		}
+		
+		
 		//읽기용도
 		operator JNode&() const { 
 			if (node != nullptr)
@@ -259,9 +274,14 @@ namespace JSON {
 				return node; 
 			return nullptr;
 		}
-		//쓰기용도
+		//덮어쓰기용도
 		JsonData& operator=(const JNode& other){
+			if (node == nullptr) return JsonData();
+			
+			//값이 존재한다면 Node를 덮어쓰기를 진행해야함 깊은복사를 진행해야함
+			*node = other;
 
+			
 		}
 	};
 
@@ -284,19 +304,7 @@ namespace JSON {
 			}
 		}
 
-#define DELETE_ROOT \
-	delete Root_Node; \
-	Root_Node = nullptr; \
-	Root_Node = new JNode(JNode::JType::NULL_TYPE); \
-	Cur_Node = Root_Node;
 
-#define NO_TYPE_THROW \
-	if (Is_Null()) {\
-		throw std::invalid_argument("안에 값이 없습니다.");\
-	}\
-	if (Not_Match_Type(curType)) {\
-		throw std::invalid_argument("타입이 맞지 않습니다.");\
-	}
 
 		//예외처리
 		//JNode가 nullptr일때
@@ -472,7 +480,7 @@ namespace JSON {
 
 				NO_TYPE_THROW
 
-					JsonData pop(Cur_Node, key);
+				JsonData pop(Cur_Node, key);
 
 				return pop;
 			}
@@ -488,7 +496,7 @@ namespace JSON {
 
 				NO_TYPE_THROW
 
-					JsonData pop(Cur_Node, index);
+				JsonData pop(Cur_Node, index);
 
 				return pop;
 			}

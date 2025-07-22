@@ -9,9 +9,11 @@ void JNode::Set_Type(JType nodeType) {
 	switch (type) {
 	case JType::OBJECT:
 		ptype = new JObj();
+		ObjCnt = -1;
 		break;
 	case JType::ARRAY:
 		ptype = new JArr();
+		ArrCnt = -1;
 		break;
 	case JType::STRING:
 		ptype = new Dynamic::DynamicStr(128);
@@ -27,6 +29,8 @@ void JNode::Set_Type(JType nodeType) {
 		break;
 	case JType::NULL_TYPE:
 		ptype = nullptr; // null 타입은 포인터를 사용하지 않음
+		ObjCnt = -2;
+		ArrCnt = -2;
 		break;
 	default:
 		ptype = nullptr; // 기본적으로 nullptr로 초기화
