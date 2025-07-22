@@ -248,6 +248,7 @@ namespace JSON {
 
 
 		}
+		//읽기용도
 		operator JNode&() const { 
 			if (node != nullptr)
 				return *node; 
@@ -258,7 +259,10 @@ namespace JSON {
 				return node; 
 			return nullptr;
 		}
-		
+		//쓰기용도
+		JsonData& operator=(const JNode& other){
+
+		}
 	};
 
 
