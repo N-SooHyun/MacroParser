@@ -534,11 +534,30 @@ namespace JSON {
 
 //JObj, JArr를 읽기 쓰기가 가능하도록 만들어주는 연산자 오버로딩 ----------------------------------------------------------------------------------
 
+
 		JsonData operator[](const char* key){
+
+			JsonData j(Cur_Node, key);
+			return j;
+
+
 			//Node["Key"] -> Node로 반환해줘야함 return Cur_Node 혹은 Root_Node;
+			if (Cur_Node->type != JNode::JType::OBJECT){
+				//불가능한거임
+			}
+			
+			//Object라면 key값이 있는지를 찾아야하고 key값이 없다면 새키를 추가하고 대입해도 된다
+			
+			//해당 key값에 value가 같은 타입인지를 찾아야한다 만약에 다르다면 덮어씌워버려
+
 		}
 		JsonData operator[](int index){
-			
+			JsonData j(Cur_Node, index);
+			return j;
+
+			if (Cur_Node->type != JNode::JType::ARRAY){
+				//불가능한거임
+			}
 		}
 
 		/*JsonData operator[](const char* key){
