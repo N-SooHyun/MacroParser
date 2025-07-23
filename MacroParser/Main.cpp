@@ -22,93 +22,71 @@ void testDynamicStrMain() {
 
 
 
-void JsonAPI_Test() {
+
+void JsonAPI_Test2(){
 	using namespace JSON;
 	using namespace Dynamic;
 
-	JsonCtrl ctrl(JNode::JType::OBJECT);
+//enum으로 대입 및 생성
+	JsonCtrl SnglTyp;							//NULLTYPE
+	JsonCtrl NumTyp(JNode::JType::NUMBER);		//0
+	JsonCtrl DblTyp(JNode::JType::DOUBLE);		//0.0
+	JsonCtrl BlTyp = JNode::JType::BOOL;		//true
+	JsonCtrl StrTyp = JNode::JType::STRING;		//
+	JsonCtrl charTyp = JNode::JType::CHAR;		
 
-	const char* test = "Test";
+	int num = 0;
+	int* pnum = &num;
+	double dnum = 0;
+	double* pdnum = &dnum;
+	bool bl = false;
+	bool* pbl = &bl;
+	char c = 'c';
+	char* str = "Test";
+
+//단일 타입 테스트------------------------------------------------------------------------------------------
+//<Operator ()= 대입>	//무조건 덮어씌워짐
+	SnglTyp = num;		//operator=(int number)
+	SnglTyp = pnum;		//operator=(int* number)
+	SnglTyp = dnum;		//operator=(double number)
+	SnglTyp = pdnum;	//operator=(double* number)
+	SnglTyp = bl;		//operator=(bool boolean)
+	SnglTyp = pbl;		//operator=(bool* boolean)
+	SnglTyp = str;		//operator=(const char* str)
+	SnglTyp = c;		//operator=(const char c)
+
+//<Operator() 반환>		//반환실패하면 -1이라던가 null값이 던져짐
+	num = SnglTyp;		//operator int()		실패시 -1 반환
+	pnum = SnglTyp;		//operator int*()		실패시 nullptr반환
+	dnum = SnglTyp;		//operator double()		실패시 -1 반환
+	pdnum = SnglTyp;	//operator double*()	실패시 nullptr반환
+	bl = SnglTyp;		//operator bool()		실패시 false 반환
+	pbl = SnglTyp;		//operator bool*()		실패시 nullptr 반환
+	c = SnglTyp;		//operator char()		실패시 '\0' 반환
+	str = SnglTyp;		//operator char*()		실패시 nullptr 반환
 
 
+//Obj 타입 테스트-------------------------------------------------------------------------------------------
+	char* key = "Key";
+	SnglTyp = JNode::JType::OBJECT;
+	JsonCtrl* test = new JsonCtrl();
 
-	JsonCtrl* pCtrl = new JsonCtrl();
-	*pCtrl = "Test";
-	*pCtrl = JNode::JType::OBJECT;
-
-	delete pCtrl;
-
-	ctrl = R"({"Test" : "a"})";
-
-	ctrl = "{\"a\" : \"b\"}";
-
-	ctrl = R"(["Test", 1, 2])";
-
-	ctrl = "[\"Test\", 1, 2]";
 
 	
+//<operator() = 대입>
+	//Node["key"] -> Node->Obj->Node의 값을 보고 대입을 해줌
+	//SnglTyp["Key"] = num;
+	//SnglTyp[key] = num;
+	SnglTyp["Key"];
 
-	//Get 넣는 부분 인터페이스 거의 다 완성
-	//Get부분 파싱만 하면 거의 다 완성
-
-
-
-	//Pop 빼는 부분 만들어야 함
-	//int num = ctrl;
-	ctrl = 1;
-
-	int num = ctrl;
-	double dnum = ctrl;
-
-	ctrl = "Test";
-
-	ctrl = 1;
-
-	char* str = ctrl;
-
-	ctrl = JNode::JType::OBJECT;
-
-	JObj* pobj = ctrl;
-
-	JObj obj = ctrl;
-
-	ctrl = 10;
-
-	JObj *pobj2 = ctrl;
-
-	JObj obj2 = ctrl;
-
-	ctrl = JNode::JType::OBJECT;
-
-	Dynamic::DynamicStr strVarAA(128);
-	strVarAA.Set_Str("Test");
-
-	if (strVarAA.StrCat("Test")) std::cout << "굿" << std::endl;
-	if (!strVarAA.StrCat("Test\n")) std::cout << "굿" << std::endl;
-	
+//<operator() 반환>
+	//num = SnglTyp["Key"];
+	//num = SnglTyp[key];
 
 
-	JNode Value = ctrl["a"];	//복사
-	JNode* pvalue = ctrl["b"];	//참조
+	return;
 
-	//삽입 만들기
-	JNode testNodeValue(JNode::JType::NUMBER);
-	ctrl["a"] = testNodeValue;
 
-	ctrl = JNode::JType::ARRAY;
-	
-	JNode arrValue = ctrl[1];
-	JNode* parrValue = ctrl[1];
-
-	
-
-	int asdfasdf = 10;
-
-	arrValue = ctrl[asdfasdf];
-
-	int ssstest = 10;
-
-	//뺄때 모든건 Node기준? Obj기준? JArr기준?
 
 }
 
@@ -123,7 +101,9 @@ void main() {
 
 	//Timer_Ctrl();
 
-	JsonAPI_Test();
+	//JsonAPI_Test();
+
+	JsonAPI_Test2();
 
 	//No_Timer_Dac();
 

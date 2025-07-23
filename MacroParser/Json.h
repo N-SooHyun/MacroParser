@@ -25,6 +25,7 @@ namespace JSON {
 			ARRAY,		//[]
 			//원시적 타입
 			STRING,		//문자열
+			CHAR,		//문자타입
 			NUMBER,		//숫자
 			BOOL,		//true false
 			DOUBLE,		//소수
@@ -202,11 +203,21 @@ namespace JSON {
 #define NO_TYPE_THROW \
 	if (Is_Null()) {\
 		throw std::invalid_argument("안에 값이 없습니다.");\
-			}\
+					}\
 	if (Not_Match_Type(curType)) {\
 		throw std::invalid_argument("타입이 맞지 않습니다.");\
-			}
+					}
 
+
+#define NO_TYPE_EXCE(rtrn)\
+	if(Is_Null()){\
+		std::cout << "안에 값이 없습니다." << std::endl;\
+		return rtrn;\
+		}\
+	if (Not_Match_Type(curType)) {\
+		std::cout << "타입이 맞지 않습니다." << std::endl;\
+		return rtrn;\
+	}\
 
 	class JsonData {
 	private:
@@ -263,6 +274,7 @@ namespace JSON {
 		}
 		
 		
+		//읽기용도
         operator JNode&() const {  
             if (node != nullptr)  
                 return *node;  
@@ -292,6 +304,17 @@ namespace JSON {
 	// 뭐든지 JNode가 시작이며 이걸 기준으로 진행하도록
 
 	class JsonCtrl {
+	private:
+		//복사생성자 및 복사대입연산자 막기
+		//복사생성자 
+		JsonCtrl(const JsonCtrl& other) : Root_Node(other.Root_Node), Cur_Node(other.Cur_Node), Next_Node(other.Next_Node){}
+
+		//이동생성자
+		JsonCtrl(const JsonCtrl&& other) : Root_Node(other.Root_Node), Cur_Node(other.Cur_Node), Next_Node(other.Next_Node){}
+
+		JsonCtrl& operator=(const JsonCtrl& other){}
+		JsonCtrl operator=(const JsonCtrl other){}
+		JsonCtrl operator=(const JsonCtrl *other){}
 	public:
 		//생성자로 생성시에는 무조건 Root_Node가 초기호 되어야 하고 Cur_Node, Next_node는 가리키는 Focus의 역할만 한다
 		JsonCtrl() : Root_Node(new JNode(JNode::JType::NULL_TYPE)), Cur_Node(Root_Node), Next_Node(nullptr){}
@@ -299,7 +322,7 @@ namespace JSON {
 			Root_Node = new JNode(rootType);
 			Cur_Node = Root_Node;
 		}
-
+		//소멸자
 		~JsonCtrl() {
 			if (Root_Node != nullptr) {
 				delete Root_Node;
@@ -308,8 +331,8 @@ namespace JSON {
 		}
 
 
+//<예외처리>
 
-		//예외처리
 		//JNode가 nullptr일때
 		bool Is_Null() const {
 			return Cur_Node == nullptr;
@@ -318,8 +341,12 @@ namespace JSON {
 			if (Is_Null()) {
 				return false; // root가 nullptr이면 덮어쓸 수 없음
 			}
-			DELETE_ROOT
-				return true;
+			//DELETE_ROOT
+			delete Cur_Node; 
+			Cur_Node = nullptr; 
+			Cur_Node = new JNode(JNode::JType::NULL_TYPE); 
+			Cur_Node = Root_Node;
+			return true;
 		}
 		bool Not_Match_Type(JNode::JType CallType) const {
 			if (CallType != Cur_Node->type){
@@ -330,19 +357,15 @@ namespace JSON {
 
 
 //<대입 연산자 오버로딩 - Get 부분>--------------------------------------------------------------------------------------------------------------
-		//enum으로 받을때
+//<enum 타입 대입>
 		void operator=(JNode::JType rootType) {
 			Overwrite();
 			Root_Node = new JNode(rootType);
 			Cur_Node = Root_Node;
 		}
 
-		//객체 배열 타입일때(JNode::JType::OBJECT, JNode::JType::ARRAY)
-		//Object 타입일때
-		/*void operator=(JObj& obj) {
-		root->type = JNode::JType::OBJECT;
-		root->ptype = static_cast<void*>(obj);
-		}*/
+//<객체 타입 대입>
+
 		//동적변수 받을때 무조건 덮어쓰기가 진행이 되어야 해서 Root_Node에 넣어줘야함
 		void operator=(JObj* obj) {
 			Overwrite();
@@ -373,7 +396,8 @@ namespace JSON {
 		//class["a"] = 대입
 		
 
-		//Array 타입일때
+//<배열 타입 대입>
+
 		void operator=(JArr* arr) {
 			Overwrite();
 			Root_Node->type = JNode::JType::ARRAY;
@@ -398,7 +422,8 @@ namespace JSON {
 		//class[1] = 대입
 		
 
-		//단일 타입일때(int, double, string, bool 등)
+//<단일 타입 대입>
+
 		// 1. 덮어쓰기가 가능하도록
 		//String 타입일때
 		void operator=(const char* str) {
@@ -440,12 +465,29 @@ namespace JSON {
 			Cur_Node = Root_Node;
 		}
 
+		//char 문자 타입일때
+		void operator=(const char c){
+			Overwrite();
+			Root_Node->Set_Type(JNode::JType::CHAR);
+			char* charPtr = static_cast<char*>(Root_Node->Get_Ptype());
+			*charPtr = c;
+			Cur_Node = Root_Node;
+		}
+
 		//Number 타입일때
 		void operator=(int number) {
 			Overwrite();
 			Root_Node->Set_Type(JNode::JType::NUMBER);
 			int* numPtr = static_cast<int*>(Root_Node->Get_Ptype());
 			*numPtr = number;
+			Cur_Node = Root_Node;
+		}
+		
+		void operator=(int* number){
+			Overwrite();
+			Root_Node->Set_Type(JNode::JType::NUMBER);
+			int* numPtr = static_cast<int*>(Root_Node->Get_Ptype());
+			*numPtr = *number;
 			Cur_Node = Root_Node;
 		}
 
@@ -458,12 +500,28 @@ namespace JSON {
 			Cur_Node = Root_Node;
 		}
 
+		void operator=(bool* boolean){
+			Overwrite();
+			Root_Node->Set_Type(JNode::JType::BOOL);
+			bool* boolPtr = static_cast<bool*>(Root_Node->Get_Ptype());
+			*boolPtr = *boolean;
+			Cur_Node = Root_Node;
+		}
+
 		//Double 타입일때
 		void operator=(double number) {
 			Overwrite();
 			Root_Node->Set_Type(JNode::JType::DOUBLE);
 			double* doublePtr = static_cast<double*>(Root_Node->Get_Ptype());
 			*doublePtr = number;
+			Cur_Node = Root_Node;
+		}
+
+		void operator=(double* number){
+			Overwrite();
+			Root_Node->Set_Type(JNode::JType::DOUBLE);
+			double* doublePtr = static_cast<double*>(Root_Node->Get_Ptype());
+			*doublePtr = *number;
 			Cur_Node = Root_Node;
 		}
 
@@ -474,10 +532,16 @@ namespace JSON {
 			Cur_Node = Root_Node;
 		}
 
-
 //JObj, JArr를 읽기 쓰기가 가능하도록 만들어주는 연산자 오버로딩 ----------------------------------------------------------------------------------
 
 		JsonData operator[](const char* key){
+			//Node["Key"] -> Node로 반환해줘야함 return Cur_Node 혹은 Root_Node;
+		}
+		JsonData operator[](int index){
+			
+		}
+
+		/*JsonData operator[](const char* key){
 			try{
 				JNode::JType curType = JNode::JType::OBJECT;
 
@@ -507,11 +571,12 @@ namespace JSON {
 				std::cout << "에러: " << e.what() << std::endl;
 				return JsonData();
 			}
-		}
+		}*/
 //---------------------------------------------------------------------------------------------------------------------------------------------
 
 //<반환 연산자 오버로딩 - Pop 부분>--------------------------------------------------------------------------------------------------------------
-		//객체 타입 반환
+//<객체 타입 반환>
+
 		//JObj를 반환 그 자체를 반환
 		operator JObj*() const{
 			try{
@@ -544,7 +609,10 @@ namespace JSON {
 			}
 		}
 
-		//배열 타입 반환 
+
+
+//<배열 타입 반환>
+		
 		//JNode& operator[](int index) {}
 		
 
@@ -580,74 +648,96 @@ namespace JSON {
 		}
 
 
-		//단일 타입 반환
+
+//<단일 타입 반환>
+
 		//정수반환
 		operator int() const{
-			try{
-				JNode::JType curType = JNode::JType::NUMBER;
+			JNode::JType curType = JNode::JType::NUMBER;
 
-				NO_TYPE_THROW
+			NO_TYPE_EXCE(-1)
 
-				int *num = static_cast<int*>(Cur_Node->ptype);
+			int *num = static_cast<int*>(Cur_Node->ptype);
 
-				return *num;
+			return *num;
 
-			}catch(const std::invalid_argument& e){
-				std::cout << "에러: " << e.what() << std::endl;
-				return -1;
-			}
+		}
+		operator int*() const{
+			JNode::JType curType = JNode::JType::NUMBER;
+
+			NO_TYPE_EXCE(nullptr)
+
+			int *num = static_cast<int*>(Cur_Node->ptype);
+
+			return num;
 		}
 		//실수반환
 		operator double() const{
-			try{
-				JNode::JType curType = JNode::JType::DOUBLE;
+			JNode::JType curType = JNode::JType::DOUBLE;
 
-				NO_TYPE_THROW
+			NO_TYPE_EXCE(-1.0);
 
-				double* dnum = static_cast<double*>(Cur_Node->ptype);
+			double* dnum = static_cast<double*>(Cur_Node->ptype);
 
-				return *dnum;
-			}
-			catch (const std::invalid_argument& e){
-				std::cout << "에러: " << e.what() << std::endl;
-				return -1.0;
-			}
+			return *dnum;
+		}
+		operator double*() const{
+			JNode::JType curType = JNode::JType::DOUBLE;
+
+			NO_TYPE_EXCE(nullptr);
+
+			double* dnum = static_cast<double*>(Cur_Node->ptype);
+
+			return dnum;
 		}
 		//bool반환
 		operator bool() const{
-			try{
-				JNode::JType curType = JNode::JType::BOOL;
+			JNode::JType curType = JNode::JType::BOOL;
 
-				NO_TYPE_THROW
+			NO_TYPE_EXCE(false);
 
-				bool* bol = static_cast<bool*>(Cur_Node->ptype);
+			bool* bol = static_cast<bool*>(Cur_Node->ptype);
 
-				return *bol;
-			}
-			catch (const std::invalid_argument& e){
-				std::cout << "에러: " << e.what() << std::endl;
-				return false;
-			}
+			return *bol;
 		}
+		operator bool*() const{
+			JNode::JType curType = JNode::JType::BOOL;
 
-		/*char operator=(int index) const{
-		문자만 출력하는건 일단 보류 
-		}*/
-		//문자열 반환
-		operator char*() const{
+			NO_TYPE_EXCE(nullptr);
+
+			bool* bol = static_cast<bool*>(Cur_Node->ptype);
+
+			return bol;
 			try{
-				JNode::JType curType = JNode::JType::STRING;
-
-				NO_TYPE_THROW
-
-				Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(Cur_Node->ptype);
-
-				return str->Get_Str();
 			}
 			catch (const std::invalid_argument& e){
 				std::cout << "에러: " << e.what() << std::endl;
 				return nullptr;
 			}
+		}
+		/*char operator=(int index) const{
+		문자만 출력하는건 일단 보류 
+		}*/
+		//문자열 반환
+		operator char*() const{
+			JNode::JType curType = JNode::JType::STRING;
+
+			NO_TYPE_EXCE(nullptr);
+
+			Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(Cur_Node->ptype);
+
+			return str->Get_Str();
+		}
+
+		//문자반환
+		operator char() const{
+			JNode::JType curType = JNode::JType::CHAR;
+
+			NO_TYPE_EXCE('\0');
+
+			char* c = static_cast<char*>(Cur_Node->ptype);
+
+			return c[0];
 		}
 
 
