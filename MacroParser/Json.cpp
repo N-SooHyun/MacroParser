@@ -220,7 +220,21 @@ void JsonData::operator=(const char c){
 	}
 }
 
+void JsonData::operator=(JNode){}
+				  
+void JsonData::operator=(JNode*){}
+				  
+void JsonData::operator=(JObj){}
+				  
+void JsonData::operator=(JObj*){}
+				  
+void JsonData::operator=(JArr){}
+				  
+void JsonData::operator=(JArr*){}
+
+
 //<대입>
+
 JsonData::operator int(){
 	NO_NODE_CK(-1)
 
@@ -371,7 +385,41 @@ JsonData::operator char*(){
 	}
 }
 
+JsonData::operator JNode(){
+	JNode jnode;
+	NO_NODE_CK(jnode)
 
+	return jnode;
+	//반환값은 JNode 인스턴스 혹여 반환할때 이동생성자 복사생성자 생길 수 있으니 주의 요망
+}
+
+JsonData::operator JNode*(){
+	NO_NODE_CK(nullptr)
+}
+
+JsonData::operator JObj(){
+	JObj obj;
+	NO_NODE_CK(obj)
+
+	return obj;
+	//반환값은 JObj 인스턴스 혹여 반환할때 이동생성자 복사생성자 생길 수 있으니 주의 요망
+}
+
+JsonData::operator JObj*(){
+	NO_NODE_CK(nullptr)
+}
+
+JsonData::operator JArr(){
+	JArr arr;
+	NO_NODE_CK(arr)
+
+	//반환값은 JArr 인스턴스 혹여 반환할때 이동생성자 복사생성자 생길 수 있으니 주의 요망
+	return arr;
+}
+
+JsonData::operator JArr*(){
+	NO_NODE_CK(nullptr)
+}
 
 
 
