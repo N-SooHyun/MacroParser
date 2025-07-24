@@ -42,7 +42,7 @@ void JsonAPI_Test2(){
 	bool bl = false;
 	bool* pbl = &bl;
 	char c = 'c';
-	char* str = "Test";
+	const char* str = "Test";
 
 //단일 타입 테스트------------------------------------------------------------------------------------------
 //<Operator ()= 대입>	//무조건 덮어씌워짐
@@ -71,16 +71,32 @@ void JsonAPI_Test2(){
 	SnglTyp = JNode::JType::OBJECT;
 	JsonCtrl* test = new JsonCtrl();
 
-
+	pnum = &num;
+	pdnum = &dnum;
+	pbl = &bl;
+	str = "Test";
 	
 //<operator() = 대입>
 	//Node["key"] -> Node->Obj->Node의 값을 보고 대입을 해줌
 	//SnglTyp["Key"] = num;
 	//SnglTyp[key] = num;
-	SnglTyp["Key"];
+	SnglTyp["Key0"] = 1;
+	SnglTyp["Key1"] = pnum;
+	SnglTyp["Key2"] = dnum;
+	SnglTyp["Key3"] = pdnum;
+	SnglTyp["Key4"] = bl;
+	SnglTyp["Key5"] = pbl;
+	SnglTyp["Key6"] = c;
+	SnglTyp["Key7"] = str;
+	SnglTyp["Key0"] = num;
+	SnglTyp["Key1"] = 1;
+
+
 
 //<operator() 반환>
-	//num = SnglTyp["Key"];
+	num = SnglTyp["Key1"];
+
+	std::cout << num << std::endl;
 	//num = SnglTyp[key];
 
 

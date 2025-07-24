@@ -2,8 +2,10 @@
 
 //JsonModel class 부분
 
+//Json.h에 대한 선언부 .cpp파일
 using namespace JSON;
 
+//<JNode 클래스>---------------------------------------------------------------------------------------------------------
 void JNode::Set_Type(JType nodeType) {
 	type = nodeType;
 	switch (type) {
@@ -74,23 +76,27 @@ void* JNode::Get_Ptype() {
 }
 
 
+
+//<JObj 클래스>----------------------------------------------------------------------------------------------------------
 //JObj class 부분
 void JObj::Set_Key(const char* k) {
 	key.Set_Str(k); // 키 값 설정
 }
 
 void JObj::Set_Value(JNode::JType nodeType) {
-	value.Set_Type(nodeType); // 값 타입 설정
+	value->Set_Type(nodeType);
 }
 
 
 JNode* JObj::Get_Value() {
-	return &value;
+	return value;
 }
 
+
+//<JArr 클래스>---------------------------------------------------------------------------------------------------------
 //JArr class 부분
 void JArr::Set_Value(JNode::JType nodeType) {
-	value.Set_Type(nodeType); // 배열 요소의 타입 설정
+	value->Set_Type(nodeType); // 배열 요소의 타입 설정
 }
 void JArr::Set_Next(JArr* nextNode) {
 	next = nextNode; // 다음 배열 요소 설정
@@ -98,7 +104,172 @@ void JArr::Set_Next(JArr* nextNode) {
 
 
 
+//<JsonData 클래스>-----------------------------------------------------------------------------------------------------
 
+//<반환>
+void JsonData::operator=(int num){
+	//Object 타입이 아닐때
+	NO_NODE_CK()
+
+	if (isAssignable){ //키값이 존재함 덮어씌워줘야함
+		JsonCtrl* Value = new JsonCtrl(focus_obj->value);
+			
+		*Value = num;
+
+	}
+	else{//대입불가능하다면? 이런경우는 없도록?
+		return;
+	}
+}
+
+void JsonData::operator=(int* num){
+	//Object 타입이 아닐때
+	NO_NODE_CK()
+
+		if (isAssignable){ //대입가능하다면 덮어씌우기
+		JsonCtrl* Value = new JsonCtrl(focus_obj->value);
+
+		*Value = *num;
+		}
+		else{//대입불가능하다면? 이런경우는 없도록?
+			return;
+		}
+}
+
+void JsonData::operator=(double dnum){
+	//Object 타입이 아닐때
+	NO_NODE_CK()
+
+		if (isAssignable){ //대입가능하다면 덮어씌우기
+		JsonCtrl* Value = new JsonCtrl(focus_obj->value);
+
+		*Value = dnum;
+		}
+		else{//대입불가능하다면? 이런경우는 없도록?
+			return;
+		}
+}
+
+void JsonData::operator=(double* dnum){
+	//Object 타입이 아닐때
+	NO_NODE_CK()
+
+	if (isAssignable){ //대입가능하다면 덮어씌우기
+	JsonCtrl* Value = new JsonCtrl(focus_obj->value);
+
+	*Value = *dnum;
+	}
+	else{//대입불가능하다면? 이런경우는 없도록?
+		return;
+	}
+}
+
+void JsonData::operator=(bool boolean){
+	//Object 타입이 아닐때
+	NO_NODE_CK()
+
+	if (isAssignable){ //대입가능하다면 덮어씌우기
+	JsonCtrl* Value = new JsonCtrl(focus_obj->value);
+
+	*Value = boolean;
+	}
+	else{//대입불가능하다면? 이런경우는 없도록?
+		return;
+	}
+}
+
+void JsonData::operator=(bool* boolean){
+	//Object 타입이 아닐때
+	NO_NODE_CK()
+
+	if (isAssignable){ //대입가능하다면 덮어씌우기
+	JsonCtrl* Value = new JsonCtrl(focus_obj->value);
+
+	*Value = *boolean;
+	}
+	else{//대입불가능하다면? 이런경우는 없도록?
+		return;
+	}
+}
+
+void JsonData::operator=(const char* str){
+	//Object 타입이 아닐때
+	NO_NODE_CK()
+
+	if (isAssignable){ //대입가능하다면 덮어씌우기
+	JsonCtrl* Value = new JsonCtrl(focus_obj->value);
+
+	*Value = str;
+	}
+	else{//대입불가능하다면? 이런경우는 없도록?
+		return;
+	}
+}
+
+void JsonData::operator=(const char c){
+	//Object 타입이 아닐때
+	NO_NODE_CK()
+
+	if (isAssignable){ //대입가능하다면 덮어씌우기
+	JsonCtrl* Value = new JsonCtrl(focus_obj->value);
+
+	*Value = c;
+	}
+	else{//대입불가능하다면? 이런경우는 없도록?
+		return;
+	}
+}
+
+//<대입>
+JsonData::operator int(){
+	NO_NODE_CK(-1)
+
+	if (isReturnable){//키값이 존재함 Type이 맞는지 해당 영역에서 비교해줘야함
+		if (focus_obj->value->type == JNode::JType::NUMBER){//반환하고자 하는 lValue와 타입이 같음
+			int* num = static_cast<int*>(focus_obj->value->ptype);
+			return *num;
+		}
+		else{//반환하고자 하는 lValue와 타입이 다름
+			return -1;
+		}
+	}
+	else{//키값 자체도 존재하지 않음 실패 반환해줘야함
+		return -1;
+	}
+}
+
+JsonData::operator int*(){
+	NO_NODE_CK(nullptr)
+}
+
+JsonData::operator double(){
+	NO_NODE_CK(-1.0)
+}
+
+JsonData::operator double*(){
+	NO_NODE_CK(nullptr)
+}
+
+JsonData::operator bool(){
+	NO_NODE_CK(false)
+}
+
+JsonData::operator bool*(){
+	NO_NODE_CK(nullptr)
+}
+
+JsonData::operator char(){
+	NO_NODE_CK('\0')
+}
+
+JsonData::operator char*(){
+	NO_NODE_CK(nullptr)
+}
+
+
+
+
+//<JsonCtrl 클래스>-----------------------------------------------------------------------------------------------------
 
 
 

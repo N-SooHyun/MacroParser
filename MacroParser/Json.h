@@ -10,7 +10,6 @@ namespace JSON {
 	//---------------------------------------------------------------------------------
 	//-------------------------------Json자료구조 부분---------------------------------
 	//---------------------------------------------------------------------------------
-
 	class JNodeBase {
 	public:
 		JNodeBase(){}
@@ -38,8 +37,7 @@ namespace JSON {
 
 		void Set_Type(JType nodeType);
 		void* Get_Ptype();
-		template<typename T>
-		JNode::JType GetJsonType();
+
 
 		//복사생성자
 		JNode(const JNode& other) : type(other.type), ptype(nullptr), ObjCnt(other.ObjCnt), ArrCnt(other.ArrCnt){
@@ -72,27 +70,30 @@ namespace JSON {
 		friend class JObj;
 		friend class JArr;
 		friend class JsonCtrl;
-		friend class JsonAPI;
+		friend class JsonData;
 	};
 
 
 	class JObj : public JNodeBase {
 	public:
-		JObj() : key(128), value(JNode::JType::NULL_TYPE), next(nullptr){}
+		JObj(JNode::JType nodeType) : key(128), value(new JNode(nodeType)), next(nullptr){}
+		JObj() : key(128), value(new JNode()), next(nullptr){}
 		~JObj() {
 			if (next != nullptr) {
 				delete next;
 				next = nullptr;
 			}
+			if (value != nullptr){
+				delete value;
+				value = nullptr;
+			}
 		}
 
 		//복사생성자 깊은복사
-		JObj(const JObj& other) : key(other.key), value(other.value), next(other.next){			
-		}
+		JObj(const JObj& other) : key(other.key), value(other.value), next(other.next){}
 
 		//이동생성자
-		JObj(JObj&& other) : key(other.key), value(other.value), next(other.next){
-		}
+		JObj(JObj&& other) : key(other.key), value(other.value), next(other.next){}
 
 		void Set_Key(const char* k);  // 키 값 설정
 		void Set_Value(JNode::JType nodeType);// 값 타입 설정
@@ -100,20 +101,25 @@ namespace JSON {
 
 	//private:
 		Dynamic::DynamicStr key; // 키 값
-		JNode value; // 값 (Json_Model 타입으로 정의)
+		JNode* value; // 값 (Json_Model 타입으로 정의)
 		JObj* next; // 다음 객체를 가리키는 포인터 (연결 리스트 형태로 구현 가능)
 		friend class JArr;
-		friend class JsonAPI;
+		friend class JsonCtrl;
+		friend class JsonData;
 	};
 
 
 	class JArr : public JNodeBase{
 	public:
-		JArr() : next(nullptr), value(JNode::JType::NULL_TYPE){}
+		JArr() : next(nullptr), value(new JNode()){}
 		~JArr() {
 			if (next != nullptr) {
 				delete next;
 				next = nullptr;
+			}
+			if (value != nullptr){
+				delete value;
+				value = nullptr;
 			}
 		}
 
@@ -128,9 +134,10 @@ namespace JSON {
 
 	//private:
 		JArr* next; // 다음 배열 요소를 가리키는 포인터 (연결 리스트 형태로 구현 가능)
-		JNode value; // 배열 요소의 값 (Json_Model 타입으로 정의)
+		JNode* value; // 배열 요소의 값 (Json_Model 타입으로 정의)
 
-		friend class JsonAPI;
+		friend class JsonCtrl;
+		friend class JsoNData;
 	};
 
 
@@ -194,40 +201,144 @@ namespace JSON {
 	// Js.clear();  -> null 혹은 0
 
 	//---------------------------------------------------------------------------------
+
 #define DELETE_ROOT \
-	delete Root_Node; \
-	Root_Node = nullptr; \
-	Root_Node = new JNode(JNode::JType::NULL_TYPE); \
-	Cur_Node = Root_Node;
+	delete Cur_Node; \
+	Cur_Node = nullptr; \
 
 #define NO_TYPE_THROW \
 	if (Is_Null()) {\
 		throw std::invalid_argument("안에 값이 없습니다.");\
-					}\
+						}\
 	if (Not_Match_Type(curType)) {\
 		throw std::invalid_argument("타입이 맞지 않습니다.");\
-					}
+						}
 
 
 #define NO_TYPE_EXCE(rtrn)\
 	if(Is_Null()){\
 		std::cout << "안에 값이 없습니다." << std::endl;\
 		return rtrn;\
-		}\
+			}\
 	if (Not_Match_Type(curType)) {\
 		std::cout << "타입이 맞지 않습니다." << std::endl;\
 		return rtrn;\
-	}\
+			}\
 
+#define NO_NODE_CK(rtn){\
+		if(node == nullptr) return rtn;\
+	}
+	class JSON::JsonCtrl;
+	
+	class JSON::JsonData; 
 	class JsonData {
 	private:
 		JNode* node;
+		JObj* root_obj;
+		JObj* focus_obj;
+		bool isAssignable;	//대입가능 여부 확인 변수
+		bool isReturnable;	//반환가능 여부 확인 변수
+		JArr* focus_arr;
 
 	public:
 		//기본생성자
-		JsonData() : node(nullptr){}
+		JsonData() : node(nullptr),root_obj(nullptr), focus_obj(nullptr), focus_arr(nullptr), isAssignable(false), isReturnable(false){}
 		//생성자
-		JsonData(JNode* n) : node(n){}
+		JsonData(JNode* n) : node(n), root_obj(nullptr), focus_obj(nullptr), focus_arr(nullptr), isAssignable(false), isReturnable(false){}
+		//객체 생성자
+		JsonData(JNode* n, const char* key) : node(n), root_obj(nullptr), focus_obj(nullptr), focus_arr(nullptr), isAssignable(false), 
+			isReturnable(false){
+			//1번 해당 node가 OBJECT가 맞는지 확인
+			if (node->type != JNode::JType::OBJECT){
+				//문제 발생한다면 예외 처리 해줘야하는데
+				printf("해당 변수가 Object타입이 아닙니다 값을 넣거나 뺄 수 없습니다.\n");
+				node = nullptr;
+				return;
+			}
+
+			//1. 키값이 있는지 찾을것(없으면 대입일때는추가, 반환일때는 실패반환)
+			//2. 키값이 존재하지만 Value가 다른타입일때(대입일때는 덮어쓰기, 반환일때는 실패반환)
+
+			root_obj = static_cast<JObj*>(node->ptype);
+			focus_obj = root_obj;
+
+			if (node->ObjCnt == -1){
+				//안에 키값이 존재하지 않는거임
+				//대입은 가능
+				//반환은 실패
+				focus_obj->Set_Key(key);
+				node->ObjCnt++;
+				isAssignable = true;
+				isReturnable = false;
+				return;
+			}
+
+			for (int obj_idx = 0; obj_idx<=node->ObjCnt; obj_idx++){
+				if (focus_obj->key.StrCat(key)){
+					//key값이 존재한다면
+					//대입은 덮어쓰기 가능
+					//반환도 가능
+					isAssignable = true;	//덮어쓰기로 해주기
+					isReturnable = true;
+					return;
+				}
+				else{	//현재 focus_obj의 key값이 같지 않을때 다음 focus로 넘어가기	
+					if (focus_obj->next == nullptr){
+						//키값이 존재하지 않으며 마지막 객체임을 의미
+						//키값 추가 새롭게 만들어줘야함
+						//반환은 실패
+						node->ObjCnt++;
+
+						JObj* new_obj = new JObj(JNode::JType::NULL_TYPE);
+
+						new_obj->Set_Key(key);
+
+						focus_obj->next = new_obj;
+
+						focus_obj = new_obj;
+						
+						isReturnable = false;
+
+						isAssignable = true;
+						return;
+					}
+				}
+				focus_obj = focus_obj->next;
+			}
+
+
+		}
+		JsonData(JNode* n, int index) : node(n), focus_obj(nullptr), focus_arr(nullptr), isAssignable(false),
+			isReturnable(false){
+			//1번 해당 node가 ARRAY가 맞는지 확인
+
+			//2번 인덱스가 없으면 문제발생
+
+			//3번 해당 인덱스에 값이 있다면 덮어쓰기
+
+		}
+
+		//대입
+		void operator=(int num); 
+		void operator=(int* num);
+		void operator=(double dnum);
+		void operator=(double* dnum);
+		void operator=(bool boolean);
+		void operator=(bool* boolean);
+		void operator=(const char* str);
+		void operator=(const char c);
+
+		//반환
+		operator int();
+		operator int*();
+		operator double();
+		operator double*();
+		operator bool();
+		operator bool*();
+		operator char();
+		operator char*();
+
+		/*
 		//객체 생성자 키값을 통해 밸류값 찾아서 전달 해줘야함
 		JsonData(JNode* n, const char* key) : node(n){
 			try{
@@ -269,8 +380,6 @@ namespace JSON {
 				std::cout << "예외 발생: " << e.what() << std::endl;
 				node = nullptr;
 			}
-
-
 		}
 		
 		
@@ -295,9 +404,8 @@ namespace JSON {
 			
 			//값이 존재한다면 Node를 덮어쓰기를 진행해야함 깊은복사를 진행해야함
 			*node = other;
-
-			
 		}
+		*/
 	};
 
 
@@ -307,26 +415,29 @@ namespace JSON {
 	private:
 		//복사생성자 및 복사대입연산자 막기
 		//복사생성자 
-		JsonCtrl(const JsonCtrl& other) : Root_Node(other.Root_Node), Cur_Node(other.Cur_Node), Next_Node(other.Next_Node){}
+		JsonCtrl(const JsonCtrl& other) :Cur_Node(other.Cur_Node){}
 
 		//이동생성자
-		JsonCtrl(const JsonCtrl&& other) : Root_Node(other.Root_Node), Cur_Node(other.Cur_Node), Next_Node(other.Next_Node){}
+		JsonCtrl(const JsonCtrl&& other) : Cur_Node(other.Cur_Node){}
 
 		JsonCtrl& operator=(const JsonCtrl& other){}
 		JsonCtrl operator=(const JsonCtrl other){}
 		JsonCtrl operator=(const JsonCtrl *other){}
+		//JsonCtrl(JNode node) {} //이거는 못쓰게 막기 복사생성자가 일어나면 골치아파짐
 	public:
 		//생성자로 생성시에는 무조건 Root_Node가 초기호 되어야 하고 Cur_Node, Next_node는 가리키는 Focus의 역할만 한다
-		JsonCtrl() : Root_Node(new JNode(JNode::JType::NULL_TYPE)), Cur_Node(Root_Node), Next_Node(nullptr){}
-		JsonCtrl(JNode::JType rootType) : Cur_Node(new JNode(JNode::JType::NULL_TYPE)), Next_Node(nullptr){
-			Root_Node = new JNode(rootType);
-			Cur_Node = Root_Node;
-		}
+		JsonCtrl() : Cur_Node(new JNode(JNode::JType::NULL_TYPE)){}
+		JsonCtrl(JNode::JType rootType) : Cur_Node(new JNode(rootType)){}
+		JsonCtrl(JNode* node) : Cur_Node(node){}
+		JsonCtrl(JNode& node) : Cur_Node(&node){}
+		
+
+		
 		//소멸자
 		~JsonCtrl() {
-			if (Root_Node != nullptr) {
-				delete Root_Node;
-				Root_Node = nullptr;
+			if (Cur_Node != nullptr) {
+				delete Cur_Node;
+				Cur_Node = nullptr;
 			}
 		}
 
@@ -341,11 +452,10 @@ namespace JSON {
 			if (Is_Null()) {
 				return false; // root가 nullptr이면 덮어쓸 수 없음
 			}
-			//DELETE_ROOT
-			delete Cur_Node; 
-			Cur_Node = nullptr; 
-			Cur_Node = new JNode(JNode::JType::NULL_TYPE); 
-			Cur_Node = Root_Node;
+			//DELETE_NODE
+			delete Cur_Node;
+			Cur_Node = nullptr;
+			Cur_Node = new JNode(JNode::JType::NULL_TYPE);
 			return true;
 		}
 		bool Not_Match_Type(JNode::JType CallType) const {
@@ -360,8 +470,7 @@ namespace JSON {
 //<enum 타입 대입>
 		void operator=(JNode::JType rootType) {
 			Overwrite();
-			Root_Node = new JNode(rootType);
-			Cur_Node = Root_Node;
+			Cur_Node = new JNode(rootType);
 		}
 
 //<객체 타입 대입>
@@ -369,14 +478,13 @@ namespace JSON {
 		//동적변수 받을때 무조건 덮어쓰기가 진행이 되어야 해서 Root_Node에 넣어줘야함
 		void operator=(JObj* obj) {
 			Overwrite();
-			Root_Node->type = JNode::JType::OBJECT;
-			Root_Node->ptype = static_cast<void*>(obj);
-			Cur_Node = Root_Node;
+			Cur_Node->type = JNode::JType::OBJECT;
+			Cur_Node->ptype = static_cast<void*>(obj);
 		}
 
 		//JNode 문자열 객체 파싱해줘야 할때
 		bool Str_Obj_Parse(const char* str) {
-			Root_Node->Set_Type(JNode::JType::OBJECT);
+			Cur_Node->Set_Type(JNode::JType::OBJECT);
 			Dynamic::DynamicStr strPtr(512);
 
 			strPtr.Set_Str(str);
@@ -400,14 +508,13 @@ namespace JSON {
 
 		void operator=(JArr* arr) {
 			Overwrite();
-			Root_Node->type = JNode::JType::ARRAY;
-			Root_Node->ptype = static_cast<void*>(arr);
-			Cur_Node = Root_Node;
+			Cur_Node->type = JNode::JType::ARRAY;
+			Cur_Node->ptype = static_cast<void*>(arr);
 		}
 
 		//JNode 문자열 배열 파싱해줘야할때
 		bool Str_Arr_Parse(const char* str) {
-			Root_Node->Set_Type(JNode::JType::ARRAY);
+			Cur_Node->Set_Type(JNode::JType::ARRAY);
 			Dynamic::DynamicStr* strPtr = new Dynamic::DynamicStr(512);
 
 			strPtr->Set_Str(str);
@@ -429,8 +536,8 @@ namespace JSON {
 		void operator=(const char* str) {
 			Overwrite();
 
-			Root_Node->Set_Type(JNode::JType::STRING);
-			Dynamic::DynamicStr* strPtr = static_cast<Dynamic::DynamicStr*>(Root_Node->Get_Ptype());
+			Cur_Node->Set_Type(JNode::JType::STRING);
+			Dynamic::DynamicStr* strPtr = static_cast<Dynamic::DynamicStr*>(Cur_Node->Get_Ptype());
 			strPtr->Set_Str(str);
 
 			short first_focus = 0;
@@ -444,13 +551,13 @@ namespace JSON {
 			if (strPtr->Get_Str()[first_focus] == '{' && strPtr->Get_Str()[last_focus] == '}') {
 				//객체 임을 판단
 				DELETE_ROOT
-					// JNode 파싱해주는 함수 호출
-					if (Str_Obj_Parse(str)) {
-					return;
-					}
-					else {
-						std::cout << "JsonCtrl::Str_Obj_Parse() Error" << std::endl;
-					}
+				// JNode 파싱해주는 함수 호출
+				if (Str_Obj_Parse(str)) {
+				return;
+				}
+				else {
+					std::cout << "JsonCtrl::Str_Obj_Parse() Error" << std::endl;
+				}
 			}
 			else if (strPtr->Get_Str()[first_focus] == '[' && strPtr->Get_Str()[last_focus] == ']') {
 				//배열 임을 판단
@@ -462,102 +569,77 @@ namespace JSON {
 						std::cout << "JsonCtrl::Str_Arr_Parse() Error" << std::endl;
 					}
 			}
-			Cur_Node = Root_Node;
 		}
 
 		//char 문자 타입일때
 		void operator=(const char c){
 			Overwrite();
-			Root_Node->Set_Type(JNode::JType::CHAR);
-			char* charPtr = static_cast<char*>(Root_Node->Get_Ptype());
+			Cur_Node->Set_Type(JNode::JType::CHAR);
+			char* charPtr = static_cast<char*>(Cur_Node->Get_Ptype());
 			*charPtr = c;
-			Cur_Node = Root_Node;
 		}
 
 		//Number 타입일때
 		void operator=(int number) {
 			Overwrite();
-			Root_Node->Set_Type(JNode::JType::NUMBER);
-			int* numPtr = static_cast<int*>(Root_Node->Get_Ptype());
+			Cur_Node->Set_Type(JNode::JType::NUMBER);
+			int* numPtr = static_cast<int*>(Cur_Node->Get_Ptype());
 			*numPtr = number;
-			Cur_Node = Root_Node;
 		}
 		
 		void operator=(int* number){
 			Overwrite();
-			Root_Node->Set_Type(JNode::JType::NUMBER);
-			int* numPtr = static_cast<int*>(Root_Node->Get_Ptype());
+			Cur_Node->Set_Type(JNode::JType::NUMBER);
+			int* numPtr = static_cast<int*>(Cur_Node->Get_Ptype());
 			*numPtr = *number;
-			Cur_Node = Root_Node;
 		}
 
 		//Boolean 타입일때
 		void operator=(bool boolean) {
 			Overwrite();
-			Root_Node->Set_Type(JNode::JType::BOOL);
-			bool* boolPtr = static_cast<bool*>(Root_Node->Get_Ptype());
+			Cur_Node->Set_Type(JNode::JType::BOOL);
+			bool* boolPtr = static_cast<bool*>(Cur_Node->Get_Ptype());
 			*boolPtr = boolean;
-			Cur_Node = Root_Node;
 		}
 
 		void operator=(bool* boolean){
 			Overwrite();
-			Root_Node->Set_Type(JNode::JType::BOOL);
-			bool* boolPtr = static_cast<bool*>(Root_Node->Get_Ptype());
+			Cur_Node->Set_Type(JNode::JType::BOOL);
+			bool* boolPtr = static_cast<bool*>(Cur_Node->Get_Ptype());
 			*boolPtr = *boolean;
-			Cur_Node = Root_Node;
 		}
 
 		//Double 타입일때
 		void operator=(double number) {
 			Overwrite();
-			Root_Node->Set_Type(JNode::JType::DOUBLE);
-			double* doublePtr = static_cast<double*>(Root_Node->Get_Ptype());
+			Cur_Node->Set_Type(JNode::JType::DOUBLE);
+			double* doublePtr = static_cast<double*>(Cur_Node->Get_Ptype());
 			*doublePtr = number;
-			Cur_Node = Root_Node;
 		}
 
 		void operator=(double* number){
 			Overwrite();
-			Root_Node->Set_Type(JNode::JType::DOUBLE);
-			double* doublePtr = static_cast<double*>(Root_Node->Get_Ptype());
+			Cur_Node->Set_Type(JNode::JType::DOUBLE);
+			double* doublePtr = static_cast<double*>(Cur_Node->Get_Ptype());
 			*doublePtr = *number;
-			Cur_Node = Root_Node;
 		}
 
 		//Null 타입일때
 		void operator=(std::nullptr_t) {
 			Overwrite();
-			Root_Node->Set_Type(JNode::JType::NULL_TYPE);
-			Cur_Node = Root_Node;
+			Cur_Node->Set_Type(JNode::JType::NULL_TYPE);
 		}
 
 //JObj, JArr를 읽기 쓰기가 가능하도록 만들어주는 연산자 오버로딩 ----------------------------------------------------------------------------------
 
 
 		JsonData operator[](const char* key){
-
 			JsonData j(Cur_Node, key);
 			return j;
-
-
-			//Node["Key"] -> Node로 반환해줘야함 return Cur_Node 혹은 Root_Node;
-			if (Cur_Node->type != JNode::JType::OBJECT){
-				//불가능한거임
-			}
-			
-			//Object라면 key값이 있는지를 찾아야하고 key값이 없다면 새키를 추가하고 대입해도 된다
-			
-			//해당 key값에 value가 같은 타입인지를 찾아야한다 만약에 다르다면 덮어씌워버려
-
 		}
 		JsonData operator[](int index){
 			JsonData j(Cur_Node, index);
 			return j;
-
-			if (Cur_Node->type != JNode::JType::ARRAY){
-				//불가능한거임
-			}
 		}
 
 		/*JsonData operator[](const char* key){
@@ -760,10 +842,18 @@ namespace JSON {
 		}
 
 
+
+//리소스 해제를 위한 메소드
+		void Node_Null_Ptr(){
+			Cur_Node = nullptr;
+		}
+
+
 	private:
-		JNode* Root_Node;
 		JNode* Cur_Node;
-		JNode* Next_Node;
+		JNode* Delete_Node;
+
+		friend class JsonData;
 	};
 }
 
