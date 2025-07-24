@@ -22,18 +22,17 @@ void testDynamicStrMain() {
 
 
 
-
 void JsonAPI_Test2(){
 	using namespace JSON;
 	using namespace Dynamic;
 
 //enum으로 대입 및 생성
 	JsonCtrl SnglTyp;							//NULLTYPE
-	JsonCtrl NumTyp(JNode::JType::NUMBER);		//0
-	JsonCtrl DblTyp(JNode::JType::DOUBLE);		//0.0
-	JsonCtrl BlTyp = JNode::JType::BOOL;		//true
-	JsonCtrl StrTyp = JNode::JType::STRING;		//
-	JsonCtrl charTyp = JNode::JType::CHAR;		
+	//JsonCtrl NumTyp(JNode::JType::NUMBER);		//0
+	//JsonCtrl DblTyp(JNode::JType::DOUBLE);		//0.0
+	//JsonCtrl BlTyp = JNode::JType::BOOL;		//true
+	//JsonCtrl StrTyp = JNode::JType::STRING;		//
+	//JsonCtrl charTyp = JNode::JType::CHAR;		
 
 	int num = 0;
 	int* pnum = &num;
@@ -92,11 +91,40 @@ void JsonAPI_Test2(){
 	SnglTyp["Key1"] = 1;
 
 
+	SnglTyp["Key0"] = pnum;
+	SnglTyp["Key1"] = 1;
+	SnglTyp["Key2"] = pdnum;
+	SnglTyp["Key3"] = dnum;
+	SnglTyp["Key4"] = pbl;
+	SnglTyp["Key5"] = bl;
+	SnglTyp["Key6"] = str;
+	SnglTyp["Key7"] = c;
+	//SnglTyp["Key0"] = num;
+	SnglTyp["Key1"] = 9;
+
+
 
 //<operator() 반환>
 	num = SnglTyp["Key1"];
+	pnum = SnglTyp["Key0"];
+	dnum = SnglTyp["Key3"];
+	pdnum = SnglTyp["Key2"];
+	bl = SnglTyp["Key5"];
+	pbl = SnglTyp["Key4"];
+	const char* str2 = SnglTyp["Key6"];
+	c = SnglTyp["Key7"];
+
+
 
 	std::cout << num << std::endl;
+	std::cout << pnum << std::endl;
+	std::cout << dnum << std::endl;
+	std::cout << pdnum << std::endl;
+	std::cout << bl << std::endl;
+	std::cout << pbl << std::endl;
+	std::cout << str2 << std::endl;
+	std::cout << c << std::endl;
+
 	//num = SnglTyp[key];
 
 

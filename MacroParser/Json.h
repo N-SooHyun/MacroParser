@@ -851,7 +851,6 @@ namespace JSON {
 
 	private:
 		JNode* Cur_Node;
-		JNode* Delete_Node;
 
 		friend class JsonData;
 	};

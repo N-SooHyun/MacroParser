@@ -230,40 +230,145 @@ JsonData::operator int(){
 			return *num;
 		}
 		else{//반환하고자 하는 lValue와 타입이 다름
+			printf("반환 타입이 다릅니다.\n");
 			return -1;
 		}
 	}
 	else{//키값 자체도 존재하지 않음 실패 반환해줘야함
+		printf("키값이 없습니다.\n");
 		return -1;
 	}
 }
 
 JsonData::operator int*(){
 	NO_NODE_CK(nullptr)
+	if (isReturnable){//키값이 존재함 Type이 맞는지 해당 영역에서 비교해줘야함
+		if (focus_obj->value->type == JNode::JType::NUMBER){//반환하고자 하는 lValue와 타입이 같음
+			int* num = static_cast<int*>(focus_obj->value->ptype);
+			return num;
+		}
+		else{//반환하고자 하는 lValue와 타입이 다름
+			printf("반환 타입이 다릅니다.\n");
+			return nullptr;
+		}
+	}
+	else{//키값 자체도 존재하지 않음 실패 반환해줘야함
+		printf("키값이 없습니다.\n");
+		return nullptr;
+	}
 }
 
 JsonData::operator double(){
 	NO_NODE_CK(-1.0)
+
+	if (isReturnable){//키값이 존재함 Type이 맞는지 해당 영역에서 비교해줘야함
+		if (focus_obj->value->type == JNode::JType::DOUBLE){//반환하고자 하는 lValue와 타입이 같음
+			double* dnum = static_cast<double*>(focus_obj->value->ptype);
+			return *dnum;
+		}
+		else{//반환하고자 하는 lValue와 타입이 다름
+			printf("반환 타입이 다릅니다.\n");
+			return -1.0;
+		}
+	}
+	else{//키값 자체도 존재하지 않음 실패 반환해줘야함
+		printf("키값이 없습니다.\n");
+		return -1.0;
+	}
 }
 
 JsonData::operator double*(){
 	NO_NODE_CK(nullptr)
+
+	if (isReturnable){//키값이 존재함 Type이 맞는지 해당 영역에서 비교해줘야함
+		if (focus_obj->value->type == JNode::JType::DOUBLE){//반환하고자 하는 lValue와 타입이 같음
+			double* dnum = static_cast<double*>(focus_obj->value->ptype);
+			return dnum;
+		}
+		else{//반환하고자 하는 lValue와 타입이 다름
+			printf("반환 타입이 다릅니다.\n");
+			return nullptr;
+		}
+	}
+	else{//키값 자체도 존재하지 않음 실패 반환해줘야함
+		printf("키값이 없습니다.\n");
+		return nullptr;
+	}
 }
 
 JsonData::operator bool(){
 	NO_NODE_CK(false)
+
+	if (isReturnable){//키값이 존재함 Type이 맞는지 해당 영역에서 비교해줘야함
+		if (focus_obj->value->type == JNode::JType::BOOL){//반환하고자 하는 lValue와 타입이 같음
+			bool* bl = static_cast<bool*>(focus_obj->value->ptype);
+			return *bl;
+		}
+		else{//반환하고자 하는 lValue와 타입이 다름
+			printf("반환 타입이 다릅니다.\n");
+			return false;
+		}
+	}
+	else{//키값 자체도 존재하지 않음 실패 반환해줘야함
+		printf("키값이 없습니다.\n");
+		return false;
+	}
 }
 
 JsonData::operator bool*(){
 	NO_NODE_CK(nullptr)
+
+	if (isReturnable){//키값이 존재함 Type이 맞는지 해당 영역에서 비교해줘야함
+		if (focus_obj->value->type == JNode::JType::BOOL){//반환하고자 하는 lValue와 타입이 같음
+			bool* bl = static_cast<bool*>(focus_obj->value->ptype);
+			return bl;
+		}
+		else{//반환하고자 하는 lValue와 타입이 다름
+			printf("반환 타입이 다릅니다.\n");
+			return nullptr;
+		}
+	}
+	else{//키값 자체도 존재하지 않음 실패 반환해줘야함
+		printf("키값이 없습니다.\n");
+		return nullptr;
+	}
 }
 
 JsonData::operator char(){
 	NO_NODE_CK('\0')
+
+	if (isReturnable){//키값이 존재함 Type이 맞는지 해당 영역에서 비교해줘야함
+		if (focus_obj->value->type == JNode::JType::CHAR){//반환하고자 하는 lValue와 타입이 같음
+			char* c = static_cast<char*>(focus_obj->value->ptype);
+			return *c;
+		}
+		else{//반환하고자 하는 lValue와 타입이 다름
+			printf("반환 타입이 다릅니다.\n");
+			return '\0';
+		}
+	}
+	else{//키값 자체도 존재하지 않음 실패 반환해줘야함
+		printf("키값이 없습니다.\n");
+		return '\0';
+	}
 }
 
 JsonData::operator char*(){
 	NO_NODE_CK(nullptr)
+	if (isReturnable){//키값이 존재함 Type이 맞는지 해당 영역에서 비교해줘야함
+		if (focus_obj->value->type == JNode::JType::STRING){//반환하고자 하는 lValue와 타입이 같음
+			Dynamic::DynamicStr* str = static_cast<Dynamic::DynamicStr*>(focus_obj->value->ptype);
+			return str->Get_Str();
+		}
+		else{//반환하고자 하는 lValue와 타입이 다름
+			printf("반환 타입이 다릅니다.\n");
+			return nullptr;
+		}
+	}
+	else{//키값 자체도 존재하지 않음 실패 반환해줘야함
+		printf("키값이 없습니다.\n");
+		return nullptr;
+	}
 }
 
 
