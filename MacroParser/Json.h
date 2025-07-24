@@ -318,7 +318,7 @@ namespace JSON {
 
 		}
 
-		//대입
+//<대입>
 		void operator=(int num); 
 		void operator=(int* num);
 		void operator=(double dnum);
@@ -328,7 +328,24 @@ namespace JSON {
 		void operator=(const char* str);
 		void operator=(const char c);
 
-		//반환
+		//객체, 배열
+		//enum JNode::JType
+		void operator=(JNode::JType nodeType);
+		void operator=(JNode::JType* nodeType);
+		
+		//JNode일때
+		void operator=(JNode _node);
+		void operator=(JNode* _node);
+		
+		//JObj일때
+		void operator=(JObj _obj);
+		void operator=(JObj* _obj);
+
+		//JArr일때
+		void operator=(JArr _arr);
+		void operator=(JArr* _arr);
+
+//<반환>
 		operator int();
 		operator int*();
 		operator double();
@@ -337,6 +354,20 @@ namespace JSON {
 		operator bool*();
 		operator char();
 		operator char*();
+
+		//객체, 배열
+		//JNode일때
+		operator JNode();
+		operator JNode*();
+		
+		//JObj일때
+		operator JObj();
+		operator JObj*();
+
+		//JArr일때
+		operator JArr();
+		operator JArr*();
+
 
 		/*
 		//객체 생성자 키값을 통해 밸류값 찾아서 전달 해줘야함

@@ -101,6 +101,10 @@ void JsonAPI_Test2(){
 	SnglTyp["Key7"] = c;
 	//SnglTyp["Key0"] = num;
 	SnglTyp["Key1"] = 9;
+	SnglTyp["Key8"] = "Test";
+	SnglTyp["Key8"] = "Ts";
+	SnglTyp["Key8"] = 1;
+	
 
 
 
